@@ -8,7 +8,11 @@ export const LIMITS = {
   maxMetadataEntries: 50,
   maxListItems: 100,
   maxBadges: 20,
+  // Moment (0.2) focus-set limits.
+  maxEntities: 100,
+  maxGroups: 25,
+  maxSummaryItems: 12,
 } as const;
 
 export const LIMITS_HELP =
-  "JuanPager version 0.1 is intended for compact shareable pages. Remote-storage mode may be added later for larger documents.";
+  "JuanPager is intended for compact shareable focus sets that fit in a URL fragment. Split large results across several pages, or wait for remote-storage mode.";

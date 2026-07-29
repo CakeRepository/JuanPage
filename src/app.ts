@@ -1,13 +1,22 @@
 import { clearFragment, docsUrl } from "./encoding/fragment.js";
-import { encodeDocumentToFragment } from "./encoding/pipeline.js";
-import { groceryPlan } from "./examples/grocery-plan.js";
+import { encodeToFragment, PayloadLimitError } from "./encoding/pipeline.js";
+import { groceryCheckout } from "./examples/grocery-checkout.js";
 import { renderDocument, renderError } from "./rendering/render.js";
+import { renderMoment } from "./rendering/renderMoment.js";
+import type { LoadedDocument } from "./schema/anyDocument.js";
 import { DocumentValidationError } from "./schema/document.js";
-import { PayloadLimitError } from "./encoding/pipeline.js";
 import { FragmentDocumentSource } from "./sources/FragmentDocumentSource.js";
 
+function renderLoaded(loaded: LoadedDocument, mount: HTMLElement): void {
+  if (loaded.kind === "moment") {
+    renderMoment(loaded.document, mount);
+    return;
+  }
+  renderDocument(loaded.document, mount);
+}
+
 async function loadDemo(): Promise<void> {
-  const fragment = await encodeDocumentToFragment(groceryPlan);
+  const fragment = await encodeToFragment(groceryCheckout);
   window.location.hash = fragment.startsWith("#") ? fragment.slice(1) : fragment;
   // hashchange will re-bootstrap; call directly for reliability
   await bootstrap();
@@ -22,9 +31,9 @@ async function bootstrap(): Promise<void> {
     renderError(mount, {
       title: "No page loaded",
       explanation:
-        "Open a JuanPager link with embedded page data, generate one in the builder, or load the grocery demo.",
+        "Open a JuanPager link with embedded page data, generate one in the builder, or load the grocery checkout demo.",
       details:
-        "Expected URL fragment format: #data=ENCODED_PAYLOAD or #v=1&data=ENCODED_PAYLOAD",
+        "Expected URL fragment format: #v=2&enc=gz&data=ENCODED_PAYLOAD (moments) or #v=1&data=ENCODED_PAYLOAD (0.1 documents)",
       onDemo: () => {
         void loadDemo();
       },
@@ -39,8 +48,7 @@ async function bootstrap(): Promise<void> {
 
   try {
     const source = new FragmentDocumentSource(hash);
-    const doc = await source.load();
-    renderDocument(doc, mount);
+    renderLoaded(await source.load(), mount);
   } catch (error) {
     const title =
       error instanceof PayloadLimitError || error instanceof DocumentValidationError
@@ -48,9 +56,9 @@ async function bootstrap(): Promise<void> {
         : "Unable to open this JuanPager";
     const explanation =
       error instanceof PayloadLimitError
-        ? "The embedded document is too large or malformed for version 0.1."
+        ? "The embedded document is too large or malformed for this format."
         : error instanceof DocumentValidationError
-          ? "The document failed schema validation. Agents must emit only supported components and safe URLs."
+          ? "The document failed schema validation. Agents must emit only supported moments, entities, affordances, and safe URLs."
           : "Decoding or validation failed. The link may be truncated, corrupted, or built for a newer format.";
     const details =
       error instanceof DocumentValidationError || error instanceof PayloadLimitError

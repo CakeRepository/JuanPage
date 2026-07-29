@@ -43,6 +43,42 @@ export function externalLink(href: string, label: string, className?: string): H
   return link;
 }
 
+/** Remote images may fail or be blocked; never leave a broken box behind. */
+export function imageWithFallback(src: string, alt: string, className: string): HTMLElement {
+  const wrap = el("div", { className: `${className}-wrap` });
+  const img = el("img", {
+    className,
+    attrs: {
+      src,
+      alt,
+      loading: "lazy",
+      decoding: "async",
+      referrerpolicy: "no-referrer",
+    },
+  });
+  const fallback = el("div", {
+    className: `${className}-fallback`,
+    text: "Image unavailable",
+    attrs: { hidden: true, role: "img", "aria-label": alt },
+  });
+  img.addEventListener("error", () => {
+    img.hidden = true;
+    fallback.hidden = false;
+  });
+  append(wrap, img, fallback);
+  return wrap;
+}
+
+export function announce(host: HTMLElement, message: string): void {
+  const note = el("span", {
+    className: "jp-sr-only",
+    text: message,
+    attrs: { role: "status", "aria-live": "polite" },
+  });
+  append(host, note);
+  window.setTimeout(() => note.remove(), 2000);
+}
+
 export function assertNoHtmlApisUsed(root: ParentNode): void {
   // Runtime guard used by tests — rendering path must not set HTML strings.
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);

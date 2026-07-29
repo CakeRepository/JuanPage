@@ -1,0 +1,32 @@
+# Justin's Four-Day Grocery Checkout
+moment: confirm
+goal: Review and shop this high-protein plan
+theme: system
+description: Everything the plan needs, grouped by the store you walk into. Sample prices only.
+
+summary:
+- Estimated total | $63.40 (sample)
+- Daily protein | 160g+
+- Stores | ALDI · Costco · Trader Joe's
+
+## ALDI
+- [ ] Chicken Breast · $11.42 · qty 1 · why: lean protein base for lunches and dinners · https://www.aldi.us/
+- [ ] Large Eggs · $3.48 · qty 1 · why: cheap complete protein
+- [ ] Bananas · $1.39 · qty 1 · why: portable carbs after workouts
+
+## Costco
+- [ ] Plain Greek Yogurt · $5.99 · qty 2 · why: breakfast protein every morning · https://www.costco.com/
+- [ ] Cottage Cheese · $4.19 · qty 1 · why: late-evening protein
+- [ ] Jasmine Rice · $12.99 · qty 1 · why: bulk carb base · badge: Bulk
+
+## Trader Joe's
+- [ ] Baby Spinach · $2.49 · qty 2 · why: volume vegetable for bowls
+- [ ] Frozen Broccoli Florets · $1.99 · qty 2 · why: zero-prep side
+- [ ] Extra Virgin Olive Oil · $8.99 · qty 1 · why: cooking fat for everything
+
+## Before you go
+- note: Batch-cook the chicken and rice on day one; everything else is assembly.
+- link: Open the full meal plan | https://example.com/meal-plan
+
+affordances: check, adjust-qty, copy-list, print, reset, open-links, copy-page
+continuation: Nothing is ordered from this page. Check items off as you shop.

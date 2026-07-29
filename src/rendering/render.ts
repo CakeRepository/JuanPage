@@ -13,7 +13,7 @@ import {
   resetLocalState,
   saveLocalState,
 } from "../state/localState.js";
-import { append, el, externalLink } from "./dom.js";
+import { announce, append, el, externalLink, imageWithFallback } from "./dom.js";
 import {
   buildShoppingListText,
   collectProductLinks,
@@ -39,31 +39,6 @@ export function applyTheme(theme: JuanPagerDocument["theme"]): void {
     return;
   }
   root.setAttribute("data-theme", theme);
-}
-
-function imageWithFallback(src: string, alt: string, className: string): HTMLElement {
-  const wrap = el("div", { className: `${className}-wrap` });
-  const img = el("img", {
-    className,
-    attrs: {
-      src,
-      alt,
-      loading: "lazy",
-      decoding: "async",
-      referrerpolicy: "no-referrer",
-    },
-  });
-  const fallback = el("div", {
-    className: `${className}-fallback`,
-    text: "Image unavailable",
-    attrs: { hidden: true, role: "img", "aria-label": alt },
-  });
-  img.addEventListener("error", () => {
-    img.hidden = true;
-    fallback.hidden = false;
-  });
-  append(wrap, img, fallback);
-  return wrap;
 }
 
 export function renderDocument(doc: JuanPagerDocument, mount: HTMLElement): RenderHandle {
@@ -515,16 +490,6 @@ export function renderDocument(doc: JuanPagerDocument, mount: HTMLElement): Rend
       mount.replaceChildren();
     },
   };
-}
-
-function announce(host: HTMLElement, message: string): void {
-  const note = el("span", {
-    className: "jp-sr-only",
-    text: message,
-    attrs: { role: "status", "aria-live": "polite" },
-  });
-  append(host, note);
-  window.setTimeout(() => note.remove(), 2000);
 }
 
 export function renderError(

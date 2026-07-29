@@ -48,7 +48,7 @@ describe("encoding", () => {
 
   it("rejects invalid compressed payloads", async () => {
     await expect(decompressDocument(bytesToBase64Url(new Uint8Array([1, 2, 3])))).rejects.toThrow(
-      /Invalid compressed|Invalid JSON|Base64/i,
+      /truncated or corrupted|Invalid JSON|Base64/i,
     );
   });
 

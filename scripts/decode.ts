@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 import { parseFragment } from "../src/encoding/fragment.js";
-import { decompressDocument } from "../src/encoding/pipeline.js";
+import { decodePayload } from "../src/encoding/pipeline.js";
 
 async function main(): Promise<void> {
   const input = process.argv[2];
   if (!input) {
-    console.error('Usage: npm run decode -- "https://example.com/juanpager/#data=..."');
+    console.error('Usage: npm run decode -- "https://example.com/juanpager/#v=2&enc=gz&data=..."');
     process.exit(1);
   }
 
@@ -17,13 +17,14 @@ async function main(): Promise<void> {
     // treat as raw fragment
   }
 
-  const { data } = parseFragment(hash);
+  const { data, version, encoding } = parseFragment(hash);
   if (!data) {
     throw new Error("No data payload found in URL/fragment");
   }
 
-  const document = await decompressDocument(data);
-  console.log(JSON.stringify(document, null, 2));
+  const loaded = await decodePayload(data, { version, encoding });
+  console.error(`Decoded a ${loaded.kind === "moment" ? "0.2 moment" : "0.1 document"}.`);
+  console.log(JSON.stringify(loaded.document, null, 2));
 }
 
 main().catch((error: unknown) => {

@@ -1,4 +1,5 @@
 import type { JuanPagerDocument, ProductComponent } from "../schema/document.js";
+import type { JuanPagerMomentDoc } from "../schema/moment.js";
 
 export type LocalProductState = {
   checked?: boolean;
@@ -24,6 +25,11 @@ export function documentStateKey(document: JuanPagerDocument): string {
   // Stable key from the decoded document so different links do not share state.
   const canonical = JSON.stringify(document);
   return `juanpager:v0.1:${fnv1a(canonical)}:${canonical.length}`;
+}
+
+export function momentStateKey(moment: JuanPagerMomentDoc): string {
+  const canonical = JSON.stringify(moment);
+  return `juanpager:v0.2:${fnv1a(canonical)}:${canonical.length}`;
 }
 
 export function emptyLocalState(): LocalPageState {
