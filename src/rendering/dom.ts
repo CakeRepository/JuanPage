@@ -1,0 +1,57 @@
+/** Safe DOM helpers — never use innerHTML / outerHTML / insertAdjacentHTML. */
+
+export function el<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  options?: {
+    className?: string;
+    text?: string;
+    attrs?: Record<string, string | number | boolean | undefined | null>;
+  },
+): HTMLElementTagNameMap[K] {
+  const node = document.createElement(tag);
+  if (options?.className) node.className = options.className;
+  if (options?.text !== undefined) node.textContent = options.text;
+  if (options?.attrs) {
+    for (const [key, value] of Object.entries(options.attrs)) {
+      if (value === undefined || value === null || value === false) continue;
+      if (value === true) {
+        node.setAttribute(key, "");
+      } else {
+        node.setAttribute(key, String(value));
+      }
+    }
+  }
+  return node;
+}
+
+export function append(parent: Node, ...children: Array<Node | null | undefined>): void {
+  for (const child of children) {
+    if (child) parent.appendChild(child);
+  }
+}
+
+export function externalLink(href: string, label: string, className?: string): HTMLAnchorElement {
+  const link = el("a", {
+    className,
+    text: label,
+    attrs: {
+      href,
+      target: "_blank",
+      rel: "noopener noreferrer",
+    },
+  });
+  return link;
+}
+
+export function assertNoHtmlApisUsed(root: ParentNode): void {
+  // Runtime guard used by tests — rendering path must not set HTML strings.
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+  let node = walker.currentNode as Element | null;
+  while (node) {
+    const tag = node.tagName.toLowerCase();
+    if (tag === "script" || tag === "iframe" || tag === "object" || tag === "embed" || tag === "style") {
+      throw new Error(`Forbidden element rendered: <${tag}>`);
+    }
+    node = walker.nextNode() as Element | null;
+  }
+}

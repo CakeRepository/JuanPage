@@ -1,0 +1,532 @@
+:root {
+  --jp-bg: #f3efe6;
+  --jp-bg-accent: #e4efe8;
+  --jp-surface: #fffdf8;
+  --jp-ink: #1c2421;
+  --jp-muted: #5b6762;
+  --jp-border: #cfd8d3;
+  --jp-brand: #0f6a56;
+  --jp-brand-ink: #083f34;
+  --jp-accent: #c45c26;
+  --jp-danger: #9b2c2c;
+  --jp-success: #1f7a4c;
+  --jp-warning: #9a6700;
+  --jp-info: #0b5cab;
+  --jp-shadow: 0 18px 40px rgba(28, 36, 33, 0.08);
+  --jp-radius: 18px;
+  --jp-font: "Segoe UI", "Avenir Next", "Helvetica Neue", sans-serif;
+  --jp-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  color-scheme: light dark;
+  font-family: var(--jp-font);
+  color: var(--jp-ink);
+  background:
+    radial-gradient(circle at top left, rgba(15, 106, 86, 0.12), transparent 40%),
+    radial-gradient(circle at top right, rgba(196, 92, 38, 0.12), transparent 35%),
+    linear-gradient(180deg, var(--jp-bg), var(--jp-bg-accent));
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --jp-bg: #101614;
+  --jp-bg-accent: #16201c;
+  --jp-surface: #1b2622;
+  --jp-ink: #eef5f1;
+  --jp-muted: #a7b5ae;
+  --jp-border: #314039;
+  --jp-brand: #59c2a6;
+  --jp-brand-ink: #b7f0de;
+  --jp-accent: #f0a06a;
+  --jp-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) {
+    --jp-bg: #101614;
+    --jp-bg-accent: #16201c;
+    --jp-surface: #1b2622;
+    --jp-ink: #eef5f1;
+    --jp-muted: #a7b5ae;
+    --jp-border: #314039;
+    --jp-brand: #59c2a6;
+    --jp-brand-ink: #b7f0de;
+    --jp-accent: #f0a06a;
+    --jp-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  line-height: 1.5;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+a {
+  color: var(--jp-brand);
+}
+
+:focus-visible {
+  outline: 3px solid var(--jp-accent);
+  outline-offset: 3px;
+}
+
+.jp-page,
+.jp-error,
+.builder-shell {
+  width: min(960px, 100%);
+  margin: 0 auto;
+  padding: 1.25rem 1rem 3rem;
+}
+
+.jp-brand {
+  margin: 0 0 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--jp-brand);
+}
+
+.jp-title,
+.builder-header h1,
+.jp-error h1 {
+  margin: 0 0 0.5rem;
+  font-family: var(--jp-display);
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+  line-height: 1.15;
+  color: var(--jp-brand-ink);
+}
+
+.jp-description,
+.jp-error-explain {
+  margin: 0 0 1rem;
+  color: var(--jp-muted);
+}
+
+.jp-totals {
+  margin: 0 0 1rem;
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.jp-toolbar,
+.jp-error-actions,
+.builder-actions,
+.jp-product-controls,
+.jp-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.jp-btn,
+.jp-product-link {
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 0.65rem 1rem;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 160ms ease, background-color 160ms ease;
+}
+
+.jp-btn:hover,
+.jp-product-link:hover {
+  transform: translateY(-1px);
+}
+
+.jp-btn-primary {
+  background: var(--jp-brand);
+  color: #fff;
+}
+
+.jp-btn-secondary,
+.jp-product-link {
+  background: var(--jp-surface);
+  color: var(--jp-ink);
+  border-color: var(--jp-border);
+}
+
+.jp-btn-danger {
+  background: var(--jp-danger);
+  color: #fff;
+}
+
+.jp-content {
+  display: grid;
+  gap: 1rem;
+}
+
+.jp-section,
+.jp-card,
+.jp-product,
+.jp-error,
+.builder-editor,
+.builder-preview {
+  background: var(--jp-surface);
+  border: 1px solid var(--jp-border);
+  border-radius: var(--jp-radius);
+  box-shadow: var(--jp-shadow);
+}
+
+.jp-section,
+.jp-card {
+  padding: 1rem;
+}
+
+.jp-section-toggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  background: transparent;
+  border: 0;
+  padding: 0.25rem 0;
+  cursor: pointer;
+  font-family: var(--jp-display);
+  font-size: 1.25rem;
+  color: inherit;
+  text-align: left;
+}
+
+.jp-section-body {
+  margin-top: 0.85rem;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.jp-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 720px) {
+  .jp-grid-2,
+  .jp-grid-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 980px) {
+  .jp-grid-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.jp-product {
+  display: grid;
+  gap: 0.85rem;
+  padding: 0.9rem;
+  transition: opacity 160ms ease;
+}
+
+.jp-product.is-checked {
+  opacity: 0.72;
+}
+
+.jp-product-image-wrap,
+.jp-image-wrap {
+  overflow: hidden;
+  border-radius: 14px;
+  background: rgba(15, 106, 86, 0.08);
+  min-height: 160px;
+}
+
+.jp-product-image,
+.jp-image {
+  display: block;
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+}
+
+.jp-product-image-fallback,
+.jp-product-image-fallback,
+.jp-image-fallback {
+  display: grid;
+  place-items: center;
+  min-height: 160px;
+  color: var(--jp-muted);
+  font-weight: 700;
+}
+
+.jp-product-name {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.jp-product-store,
+.jp-product-price,
+.jp-product-reason,
+.jp-product-description,
+.jp-meta {
+  margin: 0.25rem 0 0;
+}
+
+.jp-product-store,
+.jp-meta-label {
+  color: var(--jp-muted);
+}
+
+.jp-product-price {
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.jp-product-meta {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.jp-product-meta li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.92rem;
+}
+
+.jp-product-badges,
+.jp-badge {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.jp-badge {
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.78rem;
+  background: rgba(15, 106, 86, 0.12);
+}
+
+.jp-badge-success { background: rgba(31, 122, 76, 0.16); }
+.jp-badge-warning { background: rgba(154, 103, 0, 0.16); }
+.jp-badge-danger { background: rgba(155, 44, 44, 0.16); }
+.jp-badge-info { background: rgba(11, 92, 171, 0.14); }
+
+.jp-qty,
+.jp-purchased {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.jp-qty input[type="number"] {
+  width: 4.5rem;
+  border: 1px solid var(--jp-border);
+  border-radius: 10px;
+  padding: 0.35rem 0.5rem;
+  background: transparent;
+  color: inherit;
+}
+
+.jp-summary {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.35rem 1rem;
+  margin: 0;
+}
+
+.jp-summary dt {
+  color: var(--jp-muted);
+}
+
+.jp-summary dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.jp-list,
+.jp-checklist {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.jp-checklist {
+  list-style: none;
+  padding-left: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.jp-checklist li {
+  display: flex;
+  gap: 0.55rem;
+  align-items: flex-start;
+}
+
+.jp-divider {
+  border: 0;
+  border-top: 1px solid var(--jp-border);
+  margin: 0.5rem 0;
+}
+
+.jp-privacy,
+.jp-footer {
+  margin-top: 1.5rem;
+  color: var(--jp-muted);
+  font-size: 0.92rem;
+}
+
+.jp-footer {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.jp-error {
+  padding: 1.5rem;
+}
+
+.jp-error-details {
+  margin: 1rem 0;
+}
+
+.jp-error-details pre {
+  white-space: pre-wrap;
+  overflow: auto;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 0.75rem;
+  border-radius: 12px;
+}
+
+.jp-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.builder-page .builder-shell {
+  width: min(1280px, 100%);
+}
+
+.builder-layout {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 980px) {
+  .builder-layout {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+    align-items: start;
+  }
+}
+
+.builder-editor,
+.builder-preview {
+  padding: 1rem;
+}
+
+.builder-textarea {
+  width: 100%;
+  min-height: 420px;
+  resize: vertical;
+  border: 1px solid var(--jp-border);
+  border-radius: 14px;
+  padding: 0.85rem;
+  background: transparent;
+  color: inherit;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.builder-link {
+  width: 100%;
+  margin-top: 0.75rem;
+  border: 1px solid var(--jp-border);
+  border-radius: 12px;
+  padding: 0.65rem 0.75rem;
+  background: transparent;
+  color: inherit;
+}
+
+.builder-status {
+  margin-top: 0.75rem;
+  white-space: pre-wrap;
+}
+
+.builder-status.is-error {
+  color: var(--jp-danger);
+}
+
+.builder-frames {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.builder-frame {
+  border: 1px solid var(--jp-border);
+  border-radius: 16px;
+  overflow: auto;
+  background: rgba(0, 0, 0, 0.02);
+  padding: 0.5rem;
+}
+
+.builder-frame-mobile {
+  width: min(390px, 100%);
+  max-height: 640px;
+}
+
+.builder-frame-desktop {
+  max-height: 720px;
+}
+
+.builder-frame .jp-page {
+  width: 100%;
+  padding: 0.75rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jp-btn,
+  .jp-product-link,
+  .jp-product {
+    transition: none;
+  }
+}
+
+@media print {
+  body {
+    background: #fff;
+    color: #000;
+  }
+
+  .jp-toolbar,
+  .jp-footer,
+  .jp-privacy,
+  .jp-btn,
+  .builder-actions {
+    display: none !important;
+  }
+
+  .jp-page,
+  .jp-product,
+  .jp-section {
+    box-shadow: none;
+    border-color: #ccc;
+  }
+}
