@@ -1,10 +1,16 @@
-import { objectField, type JuanPageDocument, type PageObject, type PageScalar } from "../schema/page.js";
+import {
+  objectField,
+  type JuanPageDocument,
+  type PageBindingTarget,
+  type PageObject,
+  type PageScalar,
+} from "../schema/page.js";
 
 export type PageState = {
   values: Record<string, Record<string, PageScalar>>;
   scopes: Record<string, PageScalar>;
   selections: Record<string, string[]>;
-  selectedId?: string;
+  inspection?: PageBindingTarget;
   activeGroup?: string;
 };
 
@@ -51,7 +57,7 @@ export function loadPageState(key: string, page: JuanPageDocument): PageState {
       selections: parsed.selections && typeof parsed.selections === "object"
         ? Object.fromEntries(Object.entries(parsed.selections).map(([name, values]) => [name, Array.isArray(values) ? values.map(String) : []]))
         : fallback.selections,
-      selectedId: typeof parsed.selectedId === "string" ? parsed.selectedId : undefined,
+      inspection: parsed.inspection && typeof parsed.inspection === "object" ? parsed.inspection : undefined,
       activeGroup: typeof parsed.activeGroup === "string" ? parsed.activeGroup : undefined,
     };
   } catch {
