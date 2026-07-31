@@ -75,6 +75,7 @@ const AFFORDANCE_TO_SHORT: Record<string, string> = {
   reset: "rs",
   "open-links": "ol",
   "copy-page": "cp",
+  return: "rt",
 };
 
 const CONTINUATION_KIND_TO_SHORT: Record<string, string> = {
