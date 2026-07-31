@@ -2,14 +2,14 @@ import { clearFragment, docsUrl } from "./encoding/fragment.js";
 import { encodeToFragment, PayloadLimitError } from "./encoding/pipeline.js";
 import { groceryCheckout } from "./examples/grocery-checkout.js";
 import { renderDocument, renderError } from "./rendering/render.js";
-import { renderMoment } from "./rendering/renderMoment.js";
+import { renderMomentWithReturn } from "./rendering/renderMomentWithReturn.js";
 import type { LoadedDocument } from "./schema/anyDocument.js";
 import { DocumentValidationError } from "./schema/document.js";
 import { FragmentDocumentSource } from "./sources/FragmentDocumentSource.js";
 
 function renderLoaded(loaded: LoadedDocument, mount: HTMLElement): void {
   if (loaded.kind === "moment") {
-    renderMoment(loaded.document, mount);
+    renderMomentWithReturn(loaded.document, mount);
     return;
   }
   renderDocument(loaded.document, mount);
