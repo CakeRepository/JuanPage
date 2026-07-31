@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { createActionDelta, createActionReceipt } from "../src/protocol/meaning";
 import {
   createBrowserEventTransport,
@@ -34,11 +34,17 @@ describe("M1 transports", () => {
 
   it("requires secure HTTP endpoints and sends idempotency", async () => {
     expect(() => createHttpTransport("http://example.com/m1")).toThrow(/HTTPS/);
-    const fetcher = vi.fn(async () => new Response(null, { status: 202 }));
-    const transport = createHttpTransport("https://example.com/m1", fetcher as typeof fetch);
+    let captured: RequestInit | undefined;
+    let calls = 0;
+    const fetcher: typeof fetch = async (_input, init) => {
+      calls += 1;
+      captured = init;
+      return new Response(null, { status: 202 });
+    };
+    const transport = createHttpTransport("https://example.com/m1", fetcher);
     await transport.send(deltaMessage(createActionDelta("pkt:test", 0, "actor:test", "a:run", null)));
-    expect(fetcher).toHaveBeenCalledOnce();
-    const init = fetcher.mock.calls[0][1] as RequestInit;
-    expect((init.headers as Record<string, string>)["idempotency-key"]).toContain("idem:");
+    expect(calls).toBe(1);
+    expect(captured).toBeDefined();
+    expect((captured!.headers as Record<string, string>)["idempotency-key"]).toContain("idem:");
   });
 });
