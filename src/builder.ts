@@ -26,14 +26,14 @@ if (mount) {
   append(
     copy,
     el("p", { className: "jp-b-kicker", text: "JUAN / BUILDER" }),
-    el("h1", { text: "Describe meaning. Get an interface." }),
-    el("p", { text: "Paste an M1 symbolic packet or a canonical JuanPage 1.0 graph. Both use the same trusted runtime." }),
+    el("h1", { text: "Describe meaning. Get a working surface." }),
+    el("p", { text: "Paste an M1 symbolic packet or a canonical JuanPage 2.0 semantic graph. Both use the same trusted adaptive runtime." }),
   );
   append(header, copy, el("a", { className: "jp-u-button", text: "Open viewer", attrs: { href: getAppBasePath() } }));
 
   const layout = el("div", { className: "jp-b-layout" });
   const editorPanel = el("section", { className: "jp-b-panel" });
-  append(editorPanel, el("div", { className: "jp-b-panel-head", text: "1 · M1 packet or JuanPage 1.0" }));
+  append(editorPanel, el("div", { className: "jp-b-panel-head", text: "1 · M1 packet or JuanPage 2.0" }));
   const tools = el("div", { className: "jp-b-tools" });
   const load = el("button", { className: "jp-u-button", text: "Load M1 trust demo", attrs: { type: "button" } });
   const format = el("button", { className: "jp-u-button", text: "Format JSON", attrs: { type: "button" } });
@@ -61,7 +61,7 @@ if (mount) {
   append(editorPanel, tools, editor, status, share);
 
   const previewPanel = el("section", { className: "jp-b-panel" });
-  append(previewPanel, el("div", { className: "jp-b-panel-head", text: "2 · Live universal workspace" }));
+  append(previewPanel, el("div", { className: "jp-b-panel-head", text: "2 · Live semantic surface" }));
   const previewFrame = el("div", { className: "jp-b-preview-frame" });
   const preview = el("div", { className: "jp-b-preview" });
   append(previewFrame, preview);
@@ -108,8 +108,8 @@ if (mount) {
       renderPage(source.page, preview);
       show(
         true,
-        source.packet ? "Valid M1 packet" : "Valid JuanPage 1.0",
-        `${source.page.objects.length} objects · ${source.page.relations?.length ?? 0} relationships · one renderer`,
+        source.packet ? "Valid M1 packet" : "Valid JuanPage 2.0",
+        `${source.page.objects.length} objects · ${source.page.affordances?.length ?? 0} affordances · ${source.page.bindings?.length ?? 0} bindings`,
       );
     } catch (error) {
       preview.replaceChildren(el("pre", { className: "jp-b-preview-error", text: detail(error) }));
