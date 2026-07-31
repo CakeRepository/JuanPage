@@ -55,7 +55,8 @@ export type EntityType = (typeof ENTITY_TYPES)[number];
 
 /**
  * Affordances are local capabilities the reader gets. They never describe
- * remote effects; nothing here can call out to a server.
+ * remote effects. "return" creates a compact receipt for the user to share
+ * back to the originating agent; it does not call a server itself.
  */
 export const AFFORDANCES = [
   "check",
@@ -65,6 +66,7 @@ export const AFFORDANCES = [
   "reset",
   "open-links",
   "copy-page",
+  "return",
 ] as const;
 
 export type Affordance = (typeof AFFORDANCES)[number];
@@ -76,6 +78,7 @@ export const TOOLBAR_AFFORDANCES = [
   "reset",
   "open-links",
   "copy-page",
+  "return",
 ] as const;
 
 export const AFFORDANCE_LABELS: Record<Affordance, string> = {
@@ -86,6 +89,7 @@ export const AFFORDANCE_LABELS: Record<Affordance, string> = {
   reset: "Reset changes",
   "open-links": "Open all links",
   "copy-page": "Copy page link",
+  return: "Return update to agent",
 };
 
 export const MOMENT_LABELS: Record<MomentType, string> = {
