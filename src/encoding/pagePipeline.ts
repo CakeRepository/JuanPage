@@ -2,13 +2,21 @@ import { base64UrlToBytes, bytesToBase64Url } from "./base64url.js";
 import { gzipCompress, gzipDecompress } from "./compress.js";
 import { LIMITS, LIMITS_HELP } from "../schema/limits.js";
 import { validatePage, type JuanPageDocument } from "../schema/page.js";
+import {
+  browserRendererCapabilities,
+  materializeMeaningPacket,
+  validateMeaningPacket,
+  type MeaningPacket,
+  type RendererCapabilities,
+} from "../protocol/meaning.js";
 
 export type PagePayloadEncoding = "gz" | "raw";
 export const DEFAULT_PAGE_ENCODING: PagePayloadEncoding = "gz";
 
+type MeaningEnvelope = { transport: "m1"; packet: MeaningPacket };
+
 export class PagePayloadError extends Error {
   readonly details: string;
-
   constructor(message: string, details: string) {
     super(message);
     this.name = "PagePayloadError";
@@ -42,12 +50,8 @@ function looksGzipped(bytes: Uint8Array): boolean {
   return bytes.length > 2 && bytes[0] === 0x1f && bytes[1] === 0x8b;
 }
 
-export async function encodePage(
-  input: JuanPageDocument,
-  encoding: PagePayloadEncoding = DEFAULT_PAGE_ENCODING,
-): Promise<string> {
-  const page = validatePage(input);
-  const jsonBytes = utf8Bytes(JSON.stringify(page));
+async function encodeJson(value: unknown, encoding: PagePayloadEncoding): Promise<string> {
+  const jsonBytes = utf8Bytes(JSON.stringify(value));
   assertJsonSize(jsonBytes);
   const payloadBytes = encoding === "gz" ? await gzipCompress(jsonBytes) : jsonBytes;
   const encoded = bytesToBase64Url(payloadBytes);
@@ -55,13 +59,27 @@ export async function encodePage(
   return encoded;
 }
 
+export async function encodePage(
+  input: JuanPageDocument,
+  encoding: PagePayloadEncoding = DEFAULT_PAGE_ENCODING,
+): Promise<string> {
+  return encodeJson(validatePage(input), encoding);
+}
+
+export async function encodeMeaningPacket(
+  input: MeaningPacket,
+  encoding: PagePayloadEncoding = DEFAULT_PAGE_ENCODING,
+): Promise<string> {
+  const packet = validateMeaningPacket(input);
+  return encodeJson({ transport: "m1", packet } satisfies MeaningEnvelope, encoding);
+}
+
 export async function decodePage(
   payload: string,
   declared?: PagePayloadEncoding,
+  capabilities: RendererCapabilities = browserRendererCapabilities(),
 ): Promise<JuanPageDocument> {
-  if (!payload) {
-    throw new PagePayloadError("Missing JuanPage data.", "The URL did not include a data payload.");
-  }
+  if (!payload) throw new PagePayloadError("Missing JuanPage data.", "The URL did not include a data payload.");
   assertEncodedSize(payload);
 
   let bytes: Uint8Array;
@@ -72,9 +90,7 @@ export async function decodePage(
   }
 
   const gzipped = looksGzipped(bytes);
-  if (declared === "gz" && !gzipped) {
-    throw new Error("The link declares gzip but the payload is not gzip. It may be truncated.");
-  }
+  if (declared === "gz" && !gzipped) throw new Error("The link declares gzip but the payload is not gzip. It may be truncated.");
 
   let jsonBytes = bytes;
   if (gzipped) {
@@ -92,6 +108,10 @@ export async function decodePage(
   } catch (error) {
     throw new Error(`Invalid JSON in JuanPage payload: ${error instanceof Error ? error.message : String(error)}`);
   }
+
+  if (parsed && typeof parsed === "object" && "transport" in parsed && (parsed as MeaningEnvelope).transport === "m1") {
+    return materializeMeaningPacket((parsed as MeaningEnvelope).packet, capabilities);
+  }
   return validatePage(parsed);
 }
 
@@ -100,6 +120,13 @@ export async function encodePageToFragment(
   encoding: PagePayloadEncoding = DEFAULT_PAGE_ENCODING,
 ): Promise<string> {
   return `#v=3&enc=${encoding}&data=${await encodePage(page, encoding)}`;
+}
+
+export async function encodeMeaningPacketToFragment(
+  packet: MeaningPacket,
+  encoding: PagePayloadEncoding = DEFAULT_PAGE_ENCODING,
+): Promise<string> {
+  return `#v=3&enc=${encoding}&data=${await encodeMeaningPacket(packet, encoding)}`;
 }
 
 export async function buildPageShareUrl(
@@ -111,12 +138,15 @@ export async function buildPageShareUrl(
   return `${normalized}${await encodePageToFragment(page, encoding)}`;
 }
 
-export function measurePageSizes(encoded: string, decoded: string): {
-  encodedBytes: number;
-  decodedBytes: number;
-} {
-  return {
-    encodedBytes: utf8Bytes(encoded).byteLength,
-    decodedBytes: utf8Bytes(decoded).byteLength,
-  };
+export async function buildMeaningShareUrl(
+  packet: MeaningPacket,
+  baseUrl: string,
+  encoding: PagePayloadEncoding = DEFAULT_PAGE_ENCODING,
+): Promise<string> {
+  const normalized = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
+  return `${normalized}${await encodeMeaningPacketToFragment(packet, encoding)}`;
+}
+
+export function measurePageSizes(encoded: string, decoded: string): { encodedBytes: number; decodedBytes: number } {
+  return { encodedBytes: utf8Bytes(encoded).byteLength, decodedBytes: utf8Bytes(decoded).byteLength };
 }
