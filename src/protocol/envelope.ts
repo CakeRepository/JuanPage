@@ -72,8 +72,6 @@ export class MemoryNonceStore implements NonceStore {
   private readonly seen = new Map<string, number>();
 
   consume(issuer: string, nonce: string, expiresAt: Date): boolean {
-    const now = Date.now();
-    for (const [key, expiry] of this.seen) if (expiry <= now) this.seen.delete(key);
     const key = `${issuer}\u0000${nonce}`;
     if (this.seen.has(key)) return false;
     this.seen.set(key, expiresAt.getTime());
