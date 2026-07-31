@@ -9,7 +9,7 @@ import {
 } from "../../src/protocol/meaning.js";
 
 describe("M1 conformance", () => {
-  it("fails closed for denied executable actions", () => {
+  it("fails closed for denied executable affordances", () => {
     const packet = structuredClone(futureMeaningPacket) as unknown as unknown[];
     const records = packet[5] as unknown[][];
     const permission = records.find((record) => record[0] === 8 && record[1] === "a:approve");
@@ -17,7 +17,8 @@ describe("M1 conformance", () => {
     permission[2] = 1;
     const page = materializeMeaningPacket(packet);
     expect(actionPolicy(packet, "a:approve")).toBe("deny");
-    expect(page.actions?.some((action) => action.id === "a:approve")).toBe(false);
+    expect(page.affordances?.some((affordance) => affordance.id === "a:approve")).toBe(false);
+    expect(page.bindings?.some((binding) => binding.affordance === "a:approve")).toBe(false);
     expect(() => createActionDelta(String(packet[1]), Number(packet[2]), "actor:test", "a:approve", "e:decision", {}, "deny")).toThrow();
   });
 
@@ -38,6 +39,7 @@ describe("M1 conformance", () => {
     const original = materializeMeaningPacket(futureMeaningPacket);
     const translated = materializeMeaningPacket(localized);
     expect(translated.objects.map((object) => object.id)).toEqual(original.objects.map((object) => object.id));
-    expect(translated.actions?.map((action) => action.id)).toEqual(original.actions?.map((action) => action.id));
+    expect(translated.affordances?.map((affordance) => affordance.id)).toEqual(original.affordances?.map((affordance) => affordance.id));
+    expect(translated.bindings?.map((binding) => binding.id)).toEqual(original.bindings?.map((binding) => binding.id));
   });
 });
