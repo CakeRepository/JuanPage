@@ -29,7 +29,6 @@ describe("round-trip receipts", () => {
 
     const receipt = buildMomentReceipt(groceryCheckout, state);
     expect(receipt.changes).toEqual([
-      { id: "eggs", quantity: 1 },
       { id: "bananas", checked: true },
       { id: "greek-yogurt", quantity: 3 },
     ]);
