@@ -28,10 +28,23 @@ jobs:
           cache: npm
           registry-url: https://registry.npmjs.org
       - run: npm ci
-      - run: npm run release:dry-run
+      - name: Verify release, package, consumer, and benchmark
+        run: npm run release:dry-run
+      - name: Build publishable tarball
+        id: pack
+        shell: bash
+        run: |
+          npm pack --ignore-scripts --json > release-pack.json
+          TARBALL=$(node -e "const p=require('./release-pack.json'); process.stdout.write(p[0].filename)")
+          test -n "$TARBALL"
+          echo "tarball=$TARBALL" >> "$GITHUB_OUTPUT"
+      - name: Generate software bill of materials
+        run: npm sbom --sbom-format cyclonedx > sbom.cdx.json
+      - name: Generate release checksums
+        run: sha256sum "${{ steps.pack.outputs.tarball }}" sbom.cdx.json > checksums.txt
       - name: Publish package with provenance
         if: startsWith(github.ref, 'refs/tags/v') && inputs.dry_run != true
-        run: npm publish --provenance --access public
+        run: npm publish "${{ steps.pack.outputs.tarball }}" --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Create GitHub release
@@ -40,3 +53,9 @@ jobs:
         with:
           generate_release_notes: true
           body_path: .github/RELEASE_TEMPLATE.md
+          files: |
+            ${{ steps.pack.outputs.tarball }}
+            sbom.cdx.json
+            checksums.txt
+            benchmark/results/latest.json
+            benchmark/results/latest.md
