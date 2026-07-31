@@ -12,19 +12,19 @@ describe("M1 conformance", () => {
   it("fails closed for denied executable actions", () => {
     const packet = structuredClone(futureMeaningPacket) as unknown[];
     const records = packet[5] as unknown[][];
-    const permission = records.find((record) => record[0] === 8 && record[1] === "a:deploy");
+    const permission = records.find((record) => record[0] === 8 && record[1] === "a:approve");
     if (!permission) throw new Error("fixture permission missing");
     permission[2] = 1;
     const page = materializeMeaningPacket(packet);
-    expect(actionPolicy(packet, "a:deploy")).toBe("deny");
-    expect(page.actions?.some((action) => action.id === "a:deploy")).toBe(false);
-    expect(() => createActionDelta(String(packet[1]), Number(packet[2]), "actor:test", "a:deploy", "e:release", {}, "deny")).toThrow();
+    expect(actionPolicy(packet, "a:approve")).toBe("deny");
+    expect(page.actions?.some((action) => action.id === "a:approve")).toBe(false);
+    expect(() => createActionDelta(String(packet[1]), Number(packet[2]), "actor:test", "a:approve", "e:decision", {}, "deny")).toThrow();
   });
 
   it("rejects revision conflicts, malformed records, and unknown references", () => {
-    expect(() => validateMeaningDelta([1, futureMeaningPacket[1], 4, 6, []])).toThrow();
+    expect(() => validateMeaningDelta([1, futureMeaningPacket[1], 4, 4, []])).toThrow();
     expect(() => validateMeaningPacket([1, "pkt:test", 0, null, [], [[99]]])).toThrow();
-    expect(() => validateMeaningPacket([1, "pkt:test", 0, null, [], [[0, [1, "Title"]], [2, "missing", "p:x", true]]])).toThrow();
+    expect(() => validateMeaningPacket([1, "pkt:test", 0, null, [], [[0, [1, "Title"], null, null, 0, 0, 0, 0], [2, "missing", "p:x", true, null, 0, 0, null]]])).toThrow();
   });
 
   it("materializes deterministically across repeated runs", () => {
