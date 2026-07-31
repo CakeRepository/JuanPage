@@ -1,13 +1,12 @@
-import type { PayloadEncoding } from "./pipeline.js";
+import type { PagePayloadEncoding } from "./pagePipeline.js";
 
 export type FragmentParams = {
   version?: string;
   data?: string;
-  encoding?: PayloadEncoding;
-  receipt?: string;
+  encoding?: PagePayloadEncoding;
 };
 
-function parseEncoding(value: string | null): PayloadEncoding | undefined {
+function parseEncoding(value: string | null): PagePayloadEncoding | undefined {
   if (value === "gz" || value === "raw") return value;
   return undefined;
 }
@@ -20,31 +19,17 @@ export function parseFragment(hash: string): FragmentParams {
   const data = params.get("data") ?? undefined;
   const version = params.get("v") ?? undefined;
   const encoding = parseEncoding(params.get("enc"));
-  const receipt = params.get("r") ?? undefined;
 
-  if (data || version || receipt) {
+  if (data || version) {
     return {
       data: data || undefined,
       version: version || undefined,
       encoding,
-      receipt: receipt || undefined,
     };
   }
 
-  if (!raw.includes("=")) {
-    return { data: raw };
-  }
-
+  if (!raw.includes("=")) return { data: raw };
   return {};
-}
-
-export function withReceiptOverlay(hash: string, receipt?: string): string {
-  const raw = hash.startsWith("#") ? hash.slice(1) : hash;
-  const params = new URLSearchParams(raw);
-  if (receipt) params.set("r", receipt);
-  else params.delete("r");
-  const next = params.toString();
-  return next ? `#${next}` : "";
 }
 
 export function clearFragment(): void {
