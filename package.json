@@ -1,20 +1,53 @@
 {
   "name": "juanpager",
   "version": "1.0.0",
-  "description": "JuanPager — one universal object-graph schema and one adaptive human interface runtime",
+  "description": "Machine-native meaning transport and one trusted adaptive human interface runtime",
   "type": "module",
   "license": "MIT",
+  "sideEffects": false,
+  "main": "./dist-sdk/index.js",
+  "types": "./dist-sdk/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist-sdk/index.d.ts",
+      "import": "./dist-sdk/index.js"
+    },
+    "./protocol": {
+      "types": "./dist-sdk/protocol/meaning.d.ts",
+      "import": "./dist-sdk/protocol/meaning.js"
+    },
+    "./transport": {
+      "types": "./dist-sdk/transport/adapters.d.ts",
+      "import": "./dist-sdk/transport/adapters.js"
+    },
+    "./adapters": {
+      "types": "./dist-sdk/adapters/index.d.ts",
+      "import": "./dist-sdk/adapters/index.js"
+    }
+  },
+  "files": [
+    "dist-sdk",
+    "spec",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && npm run build:sdk",
+    "build:sdk": "tsc -p tsconfig.sdk.json",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "lint": "eslint . --ext .ts,.js",
     "check:one-runtime": "tsx scripts/enforce-one-runtime.ts",
+    "benchmark:m1": "tsx scripts/benchmark-m1.ts",
     "encode": "tsx scripts/encode.ts",
-    "decode": "tsx scripts/decode.ts"
+    "decode": "tsx scripts/decode.ts",
+    "prepack": "npm run build:sdk && npm test"
   },
   "dependencies": {
     "fflate": "^0.8.2",
