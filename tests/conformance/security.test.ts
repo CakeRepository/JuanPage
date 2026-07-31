@@ -10,7 +10,7 @@ import {
 
 describe("M1 conformance", () => {
   it("fails closed for denied executable actions", () => {
-    const packet = structuredClone(futureMeaningPacket) as unknown[];
+    const packet = structuredClone(futureMeaningPacket) as unknown as unknown[];
     const records = packet[5] as unknown[][];
     const permission = records.find((record) => record[0] === 8 && record[1] === "a:approve");
     if (!permission) throw new Error("fixture permission missing");
@@ -33,7 +33,7 @@ describe("M1 conformance", () => {
   });
 
   it("keeps symbolic identity stable when vocabulary text changes", () => {
-    const localized = structuredClone(futureMeaningPacket) as unknown[];
+    const localized = structuredClone(futureMeaningPacket) as unknown as unknown[];
     localized[4] = (localized[4] as [string, string][]).map(([symbol, text]) => [symbol, `localized:${text}`]);
     const original = materializeMeaningPacket(futureMeaningPacket);
     const translated = materializeMeaningPacket(localized);
