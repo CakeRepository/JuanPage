@@ -8,15 +8,24 @@ import {
 import { futureMeaningPacket } from "./examples/meaning-workspace.js";
 import {
   browserRendererCapabilities,
+  createActionDelta,
+  createActionReceipt,
   createFactDelta,
   materializeMeaningPacket,
   MeaningProtocolError,
+  type ActionPolicy,
   type MeaningDelta,
 } from "./protocol/meaning.js";
-import { renderPage } from "./rendering/renderPage.js";
+import { renderPage, type PageActionInvocation } from "./rendering/renderPage.js";
 import { DocumentValidationError } from "./schema/errors.js";
-import type { JuanPageDocument } from "./schema/page.js";
+import type { JuanPageDocument, PageScalar } from "./schema/page.js";
 import type { PageValueMutation } from "./state/pageState.js";
+import {
+  createBrowserEventTransport,
+  deltaMessage,
+  receiptMessage,
+  type MeaningTransport,
+} from "./transport/adapters.js";
 
 function appBaseUrl(): string {
   return new URL(getAppBasePath(), window.location.origin).toString();
@@ -47,30 +56,72 @@ function errorPage(error: unknown): JuanPageDocument {
   };
 }
 
-let removeValueBridge: (() => void) | undefined;
+let removeMeaningBridge: (() => void) | undefined;
+const browserTransport = createBrowserEventTransport(window);
 
-function bridgeMeaningDeltas(page: JuanPageDocument): void {
-  removeValueBridge?.();
+function policyFromPage(page: JuanPageDocument, actionId: string): ActionPolicy {
+  const value = page.metadata?.[`m1.policy.${actionId}`];
+  return value === "approval" || value === "deny" ? value : "allow";
+}
+
+function scalarArgs(page: JuanPageDocument, invocation: PageActionInvocation): Readonly<Record<string, PageScalar>> {
+  const operation = page.metadata?.[`m1.operation.${invocation.actionId}`];
+  return {
+    kind: invocation.kind,
+    objectId: invocation.objectId ?? null,
+    operation: typeof operation === "string" ? operation : null,
+  };
+}
+
+function createMeaningBridge(page: JuanPageDocument, transport: MeaningTransport = browserTransport): { onAction?: (invocation: PageActionInvocation) => Promise<void> } {
+  removeMeaningBridge?.();
   const packetId = page.metadata?.["m1.packetId"];
   const initialRevision = page.metadata?.["m1.revision"];
-  if (typeof packetId !== "string" || typeof initialRevision !== "number") return;
+  if (typeof packetId !== "string" || typeof initialRevision !== "number") return {};
 
   let revision = initialRevision;
-  const listener = (event: Event): void => {
+  const sendDelta = async (delta: MeaningDelta): Promise<void> => {
+    revision = delta[3];
+    await transport.send(deltaMessage(delta));
+  };
+
+  const valueListener = (event: Event): void => {
     const mutation = (event as CustomEvent<PageValueMutation>).detail;
     if (!mutation) return;
-    const delta: MeaningDelta = createFactDelta(packetId, revision, mutation.target, mutation.field, mutation.value);
-    revision = delta[3];
-    window.dispatchEvent(new CustomEvent<MeaningDelta>("juanpager:delta", { detail: delta }));
-    console.info("JuanPager M1 delta", delta);
+    void sendDelta(createFactDelta(packetId, revision, mutation.target, mutation.field, mutation.value)).catch((error) => {
+      console.error("JuanPager could not send an M1 fact delta", error);
+    });
   };
-  window.addEventListener("juanpager:value", listener);
-  removeValueBridge = () => window.removeEventListener("juanpager:value", listener);
+  window.addEventListener("juanpager:value", valueListener);
+  removeMeaningBridge = () => window.removeEventListener("juanpager:value", valueListener);
+
+  return {
+    async onAction(invocation): Promise<void> {
+      const policy = policyFromPage(page, invocation.actionId);
+      const target = invocation.target && invocation.target !== "page"
+        ? invocation.target
+        : invocation.objectId ?? null;
+      const delta = createActionDelta(
+        packetId,
+        revision,
+        "actor:human:browser",
+        invocation.actionId,
+        target,
+        scalarArgs(page, invocation),
+        policy,
+      );
+      await sendDelta(delta);
+      const receipt = createActionReceipt(delta, policy === "approval" ? "proposed" : "authorized", {
+        transport: transport.name,
+      });
+      await transport.send(receiptMessage(receipt));
+    },
+  };
 }
 
 function render(page: JuanPageDocument, mount: HTMLElement, onShare?: () => string | Promise<string>): void {
-  bridgeMeaningDeltas(page);
-  renderPage(page, mount, { builderHref: builderPath(), onShare });
+  const bridge = createMeaningBridge(page);
+  renderPage(page, mount, { builderHref: builderPath(), onShare, onAction: bridge.onAction });
 }
 
 async function bootstrap(): Promise<void> {
