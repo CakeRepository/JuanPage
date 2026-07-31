@@ -1,0 +1,40 @@
+name: Upgrade lint toolchain once
+
+on:
+  push:
+    branches:
+      - feat/release-grade-conformance
+
+permissions:
+  contents: write
+
+jobs:
+  upgrade:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: feat/release-grade-conformance
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install the supported flat-config lint stack
+        run: |
+          npm install --save-dev eslint@latest @eslint/js@latest typescript-eslint@latest globals@latest
+          npm uninstall --save-dev @typescript-eslint/eslint-plugin @typescript-eslint/parser
+          npm audit fix --package-lock-only
+      - name: Commit package metadata
+        shell: bash
+        run: |
+          if git diff --quiet -- package.json package-lock.json; then
+            echo "Lint toolchain is already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git commit -m "Upgrade to the supported ESLint flat-config stack"
+          git push origin HEAD:feat/release-grade-conformance
