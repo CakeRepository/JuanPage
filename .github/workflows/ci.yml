@@ -18,8 +18,12 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Install browser runtime
+        run: npx playwright install --with-deps chromium
       - name: Production dependency audit
         run: npm audit --omit=dev --audit-level=high
+      - name: Release identity
+        run: npm run check:release-version
       - name: Architecture invariant
         run: npm run check:one-runtime
       - name: Lint
@@ -28,13 +32,31 @@ jobs:
         run: npm run test:unit
       - name: Integration tests
         run: npm run test:integration
-      - name: Conformance tests
+      - name: Conformance and deterministic fuzz tests
         run: npm run test:conformance
+      - name: Browser interaction journeys
+        run: npm run test:e2e
       - name: Application and SDK build
         run: npm run build
       - name: Public API compatibility
         run: npm run check:public-api
+      - name: Clean-room packed SDK consumer
+        run: npm run test:consumer
       - name: npm package dry run
         run: npm run package:dry-run
-      - name: Benchmark smoke test
-        run: npm run benchmark:smoke
+      - name: Benchmark and performance budget
+        run: npm run benchmark:budget
+      - name: Generate CycloneDX SBOM
+        run: npm sbom --sbom-format cyclonedx > sbom.cdx.json
+      - name: Upload conformance evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: juanpager-conformance-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            benchmark/results/latest.json
+            benchmark/results/latest.md
+            sbom.cdx.json
+            playwright-report/
+            test-results/
