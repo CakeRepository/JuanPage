@@ -38,6 +38,8 @@ const RETIRED_PATHS = [
   "src/rendering/renderWelcome.ts",
   "src/examples/grocery-plan.ts",
   "src/examples/grocery-checkout.ts",
+  "src/styles.css",
+  "src/welcome.css",
   "src/return.css",
   "examples/grocery-plan.json",
   "examples/grocery-checkout.json",
@@ -128,6 +130,15 @@ for (const path of UNIVERSAL_SURFACES) {
   }
 }
 
+const indexHtml = await readFile("index.html", "utf8");
+const builderHtml = await readFile("builder.html", "utf8");
+for (const [path, source] of [["index.html", indexHtml], ["builder.html", builderHtml]] as const) {
+  if (!source.includes('/src/universal.css')) failures.push(`${path} must load the canonical adaptive runtime stylesheet.`);
+  if (source.includes('/src/styles.css') || source.includes('/src/welcome.css') || source.includes('/src/return.css')) {
+    failures.push(`${path} loads a retired visual system.`);
+  }
+}
+
 const pageSchema = await readFile("src/schema/page.ts", "utf8");
 if (!pageSchema.includes('version: z.literal("2.0")')) failures.push("The canonical page schema must be JuanPage 2.0.");
 for (const concept of ["pageAffordanceSchema", "pageBindingSchema", "pageScopeSchema", "pageProjectionSchema"] as const) {
@@ -157,9 +168,9 @@ if (renderer.includes("jp-u-lenses") || renderer.includes("setLens(")) {
 }
 
 if (failures.length > 0) {
-  console.error("JuanPager must expose exactly one semantic schema and one adaptive runtime.\n");
+  console.error("JuanPager must expose exactly one semantic schema, one adaptive runtime, and one visual system.\n");
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
 
-console.log("One-schema invariant verified: retired schema and renderer files are absent; M1 compiles into JuanPage 2.0; information is inert without bindings; and human facts, scopes, selections, and operations produce typed deltas and receipts.");
+console.log("One-schema invariant verified: retired schema, renderer, and visual-system files are absent; M1 compiles into JuanPage 2.0; information is inert without bindings; and human facts, scopes, selections, and operations produce typed deltas and receipts.");
