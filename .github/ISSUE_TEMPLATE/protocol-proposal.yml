@@ -1,0 +1,38 @@
+name: Protocol proposal
+description: Propose a wire, trust, adapter, or conformance change
+title: "[Protocol]: "
+labels: [protocol]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Interoperability problem
+      description: Describe the concrete external-developer problem and current executable evidence.
+    validations:
+      required: true
+  - type: textarea
+    id: boundary
+    attributes:
+      label: Architecture boundary
+      description: Explain how M1 remains transport, JuanPage 1.0 remains the only UI schema, and renderPage remains the only renderer.
+    validations:
+      required: true
+  - type: textarea
+    id: wire
+    attributes:
+      label: Proposed wire change and fixtures
+    validations:
+      required: true
+  - type: dropdown
+    id: compatibility
+    attributes:
+      label: Compatibility impact
+      options: [Patch-compatible, Minor-compatible, Major-breaking, Unknown]
+    validations:
+      required: true
+  - type: textarea
+    id: security
+    attributes:
+      label: Security and fail-closed behavior
+    validations:
+      required: true
