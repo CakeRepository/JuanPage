@@ -11,15 +11,21 @@
   },
   "include": [
     "src/index.ts",
+    "src/node.ts",
     "src/schema/page.ts",
     "src/schema/errors.ts",
     "src/schema/limits.ts",
     "src/schema/url.ts",
     "src/protocol/meaning.ts",
+    "src/protocol/envelope.ts",
+    "src/protocol/trust-projection.ts",
+    "src/protocol/file-nonce-store.ts",
     "src/encoding/base64url.ts",
     "src/encoding/compress.ts",
     "src/encoding/pagePipeline.ts",
     "src/transport/adapters.ts",
-    "src/adapters/index.ts"
+    "src/adapters/index.ts",
+    "src/adapters/agui.ts",
+    "src/adapters/mcp-app.ts"
   ]
 }
