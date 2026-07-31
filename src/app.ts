@@ -1,8 +1,12 @@
 import { builderPath, getAppBasePath, parseFragment } from "./encoding/fragment.js";
 import {
+  appendMeaningSessionDelta,
+  buildMeaningSessionShareUrl,
   buildMeaningShareUrl,
-  decodePage,
+  createMeaningSession,
+  decodePagePayload,
   PagePayloadError,
+  type MeaningSession,
   type PagePayloadEncoding,
 } from "./encoding/pagePipeline.js";
 import { operationsControlRoomPacket } from "./examples/operations-control-room.js";
@@ -38,7 +42,7 @@ function errorPage(error: unknown): JuanPageDocument {
     version: "1.0",
     title: "This world could not be opened",
     intent: "JuanPager rejected data it could not safely understand.",
-    description: "The runtime accepts JuanPage 1.0 or an M1 meaning packet that compiles into JuanPage 1.0.",
+    description: "The runtime accepts JuanPage 1.0, an M1 meaning packet, or a record-only M1 URL session.",
     theme: "dark",
     view: { defaultLens: "cards", groupBy: "none" },
     objects: [{
@@ -73,15 +77,24 @@ function scalarArgs(page: JuanPageDocument, invocation: PageActionInvocation): R
   };
 }
 
-function createMeaningBridge(page: JuanPageDocument, transport: MeaningTransport = browserTransport): { onAction?: (invocation: PageActionInvocation) => Promise<void> } {
+function createMeaningBridge(
+  page: JuanPageDocument,
+  initialSession?: MeaningSession,
+  transport: MeaningTransport = browserTransport,
+): {
+  onAction?: (invocation: PageActionInvocation) => Promise<void>;
+  session?: () => MeaningSession;
+} {
   removeMeaningBridge?.();
   const packetId = page.metadata?.["m1.packetId"];
   const initialRevision = page.metadata?.["m1.revision"];
   if (typeof packetId !== "string" || typeof initialRevision !== "number") return {};
 
   let revision = initialRevision;
+  let session = initialSession;
   const sendDelta = async (delta: MeaningDelta): Promise<void> => {
     revision = delta[3];
+    if (session) session = appendMeaningSessionDelta(session, delta);
     await transport.send(deltaMessage(delta));
   };
 
@@ -89,13 +102,14 @@ function createMeaningBridge(page: JuanPageDocument, transport: MeaningTransport
     const mutation = (event as CustomEvent<PageValueMutation>).detail;
     if (!mutation) return;
     void sendDelta(createFactDelta(packetId, revision, mutation.target, mutation.field, mutation.value)).catch((error) => {
-      console.error("JuanPager could not send an M1 fact delta", error);
+      console.error("JuanPager could not record an M1 fact delta", error);
     });
   };
   window.addEventListener("juanpager:value", valueListener);
   removeMeaningBridge = () => window.removeEventListener("juanpager:value", valueListener);
 
   return {
+    session: session ? () => session! : undefined,
     async onAction(invocation): Promise<void> {
       const policy = policyFromPage(page, invocation.actionId);
       const target = invocation.target && invocation.target !== "page"
@@ -110,17 +124,27 @@ function createMeaningBridge(page: JuanPageDocument, transport: MeaningTransport
         scalarArgs(page, invocation),
         policy,
       );
-      await sendDelta(delta);
       const receipt = createActionReceipt(delta, policy === "approval" ? "proposed" : "authorized", {
         transport: transport.name,
+        execution: "record-only",
       });
+      revision = delta[3];
+      if (session) session = appendMeaningSessionDelta(session, delta, receipt);
+      await transport.send(deltaMessage(delta));
       await transport.send(receiptMessage(receipt));
     },
   };
 }
 
-function render(page: JuanPageDocument, mount: HTMLElement, onShare?: () => string | Promise<string>): void {
-  const bridge = createMeaningBridge(page);
+function render(
+  page: JuanPageDocument,
+  mount: HTMLElement,
+  options: { session?: MeaningSession; onShare?: () => string | Promise<string> } = {},
+): void {
+  const bridge = createMeaningBridge(page, options.session);
+  const onShare = bridge.session
+    ? () => buildMeaningSessionShareUrl(bridge.session!(), appBaseUrl())
+    : options.onShare;
   renderPage(page, mount, { builderHref: builderPath(), onShare, onAction: bridge.onAction });
 }
 
@@ -131,16 +155,27 @@ async function bootstrap(): Promise<void> {
   const fragment = parseFragment(window.location.hash);
   if (!fragment.data) {
     const page = materializeMeaningPacket(operationsControlRoomPacket, browserRendererCapabilities());
-    render(page, mount, () => buildMeaningShareUrl(operationsControlRoomPacket, appBaseUrl()));
+    const session = createMeaningSession(operationsControlRoomPacket);
+    render(page, mount, { session });
     return;
   }
 
   try {
-    if (fragment.version && fragment.version !== "3") {
-      throw new Error(`Unsupported fragment version v=${fragment.version}. JuanPage 1.0 uses v=3.`);
+    if (fragment.version && fragment.version !== "3" && fragment.version !== "4") {
+      throw new Error(`Unsupported fragment version v=${fragment.version}. JuanPage links use v=3 or v=4.`);
     }
-    const page = await decodePage(fragment.data, fragment.encoding as PagePayloadEncoding | undefined);
-    render(page, mount, () => window.location.href);
+    const decoded = await decodePagePayload(fragment.data, fragment.encoding as PagePayloadEncoding | undefined);
+    if (decoded.kind === "m1-session") {
+      render(decoded.page, mount, { session: decoded.session });
+      return;
+    }
+    if (decoded.kind === "m1") {
+      render(decoded.page, mount, {
+        onShare: () => buildMeaningShareUrl(decoded.packet, appBaseUrl()),
+      });
+      return;
+    }
+    render(decoded.page, mount, { onShare: () => window.location.href });
   } catch (error) {
     render(errorPage(error), mount);
   }
