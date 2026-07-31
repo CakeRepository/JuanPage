@@ -7,8 +7,8 @@ import {
 } from "./encoding/pagePipeline.js";
 import { futureWorkspace } from "./examples/future-workspace.js";
 import { renderPage } from "./rendering/renderPage.js";
+import { DocumentValidationError } from "./schema/errors.js";
 import type { JuanPageDocument } from "./schema/page.js";
-import { DocumentValidationError } from "./schema/document.js";
 
 function appBaseUrl(): string {
   return new URL(getAppBasePath(), window.location.origin).toString();
