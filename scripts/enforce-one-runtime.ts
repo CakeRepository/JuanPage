@@ -32,7 +32,6 @@ const RETIRED_PATHS = [
   "src/encoding/pipeline.ts",
   "src/rendering/collect.ts",
   "src/rendering/collectMoment.ts",
-  "src/rendering/render.ts",
   "src/rendering/renderMoment.ts",
   "src/rendering/renderMomentWithReturn.ts",
   "src/rendering/renderWelcome.ts",
@@ -130,6 +129,14 @@ for (const path of UNIVERSAL_SURFACES) {
   }
 }
 
+const sharedRenderContract = await readFile("src/rendering/render.ts", "utf8");
+if (!sharedRenderContract.includes("applyTheme") || !sharedRenderContract.includes("RenderHandle")) {
+  failures.push("The shared render contract must expose only the trusted theme helper and render handle type.");
+}
+for (const retiredSymbol of ["renderDocument", "JuanPagerDocument", "ProductComponent", "localState", "collectProducts"] as const) {
+  if (sharedRenderContract.includes(retiredSymbol)) failures.push(`The shared render contract contains retired renderer behavior: ${retiredSymbol}`);
+}
+
 const indexHtml = await readFile("index.html", "utf8");
 const builderHtml = await readFile("builder.html", "utf8");
 for (const [path, source] of [["index.html", indexHtml], ["builder.html", builderHtml]] as const) {
@@ -168,9 +175,9 @@ if (renderer.includes("jp-u-lenses") || renderer.includes("setLens(")) {
 }
 
 if (failures.length > 0) {
-  console.error("JuanPager must expose exactly one semantic schema, one adaptive runtime, and one visual system.\n");
+  console.error("JuanPager must expose exactly one semantic schema, one adaptive renderer, and one visual system.\n");
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
 
-console.log("One-schema invariant verified: retired schema, renderer, and visual-system files are absent; M1 compiles into JuanPage 2.0; information is inert without bindings; and human facts, scopes, selections, and operations produce typed deltas and receipts.");
+console.log("One-schema invariant verified: retired schema, renderer behavior, and visual-system files are absent; M1 compiles into JuanPage 2.0; renderPage is the only renderer; information is inert without bindings; and human facts, scopes, selections, and operations produce typed deltas and receipts.");
