@@ -7,11 +7,16 @@ const UNIVERSAL_SURFACES = [
   "src/state/pageState.ts",
   "src/protocol/meaning.ts",
   "src/encoding/pagePipeline.ts",
+  "src/transport/adapters.ts",
+  "src/adapters/index.ts",
+  "src/index.ts",
   "scripts/encode.ts",
   "scripts/decode.ts",
   "tests/page.test.ts",
   "tests/renderPage.test.ts",
   "tests/meaning.test.ts",
+  "tests/transport.test.ts",
+  "tests/adapters.test.ts",
 ] as const;
 
 const FORBIDDEN_IMPORTS = [
@@ -28,17 +33,21 @@ const FORBIDDEN_IMPORTS = [
 const FORBIDDEN_PUBLIC_VERSIONS = ['version: "0.1"', 'version: "0.2"', 'v=1', 'v=2'] as const;
 
 const REQUIRED_IMPORTS: Record<string, readonly string[]> = {
-  "src/app.ts": ["/schema/page", "/rendering/renderPage", "/encoding/pagePipeline", "/protocol/meaning"],
-  "src/builder.ts": ["/schema/page", "/rendering/renderPage", "/encoding/pagePipeline"],
+  "src/app.ts": ["/schema/page", "/rendering/renderPage", "/encoding/pagePipeline", "/protocol/meaning", "/transport/adapters"],
+  "src/builder.ts": ["/schema/page", "/rendering/renderPage", "/encoding/pagePipeline", "/protocol/meaning"],
   "src/rendering/renderPage.ts": ["/schema/page", "/state/pageState"],
   "src/state/pageState.ts": ["/schema/page"],
   "src/protocol/meaning.ts": ["/schema/page"],
   "src/encoding/pagePipeline.ts": ["/schema/page", "/protocol/meaning"],
-  "scripts/encode.ts": ["/schema/page", "/encoding/pagePipeline"],
+  "src/transport/adapters.ts": ["/protocol/meaning"],
+  "src/adapters/index.ts": ["/schema/page"],
+  "scripts/encode.ts": ["/schema/page", "/encoding/pagePipeline", "/protocol/meaning"],
   "scripts/decode.ts": ["/encoding/pagePipeline"],
   "tests/page.test.ts": ["/schema/page", "/schema/errors", "/encoding/pagePipeline"],
-  "tests/renderPage.test.ts": ["/rendering/renderPage"],
+  "tests/renderPage.test.ts": ["/rendering/renderPage", "/protocol/meaning"],
   "tests/meaning.test.ts": ["/protocol/meaning", "/encoding/pagePipeline"],
+  "tests/transport.test.ts": ["/transport/adapters", "/protocol/meaning"],
+  "tests/adapters.test.ts": ["/adapters", "/protocol/meaning"],
 };
 
 const failures: string[] = [];
@@ -51,7 +60,8 @@ for (const path of UNIVERSAL_SURFACES) {
 
 const meaning = await readFile("src/protocol/meaning.ts", "utf8");
 if (!meaning.includes("materializeMeaningPacket")) failures.push("M1 must materialize into JuanPage 1.0.");
-if (!meaning.includes("createFactDelta")) failures.push("M1 must return human mutations as typed deltas.");
+if (!meaning.includes("createFactDelta") || !meaning.includes("createActionDelta")) failures.push("M1 must return human mutations as typed deltas.");
+if (!meaning.includes("createActionReceipt")) failures.push("Executable M1 actions must produce receipts.");
 if (meaning.includes("renderMeaning")) failures.push("M1 may not introduce a second renderer.");
 
 if (failures.length > 0) {
@@ -60,4 +70,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log("One-schema invariant verified: M1 transport compiles into JuanPage 1.0 and the universal runtime.");
+console.log("One-schema invariant verified: M1 compiles into JuanPage 1.0, permissions are enforced, and actions produce typed receipts.");
