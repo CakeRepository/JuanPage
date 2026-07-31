@@ -3,7 +3,7 @@ import { parseFragment, withReceiptOverlay } from "../encoding/fragment.js";
 import {
   buildMomentReceipt,
   buildMomentReceiptText,
-  encodeMomentReceipt,
+  encodeMomentReceiptToken,
   receiptHasChanges,
 } from "../protocol/receipt.js";
 import type { JuanPagerMomentDoc } from "../schema/moment.js";
@@ -42,7 +42,7 @@ function isInteractive(moment: JuanPagerMomentDoc): boolean {
 
 function writeLivingLink(moment: JuanPagerMomentDoc, state: LocalPageState): string {
   const receipt = buildMomentReceipt(moment, state);
-  const overlay = receiptHasChanges(receipt) ? encodeMomentReceipt(receipt) : undefined;
+  const overlay = receiptHasChanges(receipt) ? encodeMomentReceiptToken(receipt) : undefined;
   const nextHash = withReceiptOverlay(window.location.hash, overlay);
   const nextUrl = `${window.location.pathname}${window.location.search}${nextHash}`;
   window.history.replaceState(null, "", nextUrl);
