@@ -76,8 +76,11 @@ The agent receives a typed proposal, not a sentence to reinterpret.
 
 ## SDK
 
+The repository is configured to publish a typed ESM package. Until the first npm release is cut, build the SDK locally:
+
 ```bash
-npm install juanpager
+npm install
+npm run build:sdk
 ```
 
 ```ts
@@ -94,7 +97,7 @@ await createHttpTransport("https://agent.example/m1").send({ version: 1, kind: "
 const resource = toMcpAppResource(page);
 ```
 
-Exports are also available from `juanpager/protocol`, `juanpager/transport`, and `juanpager/adapters`.
+Exports are prepared for `juanpager/protocol`, `juanpager/transport`, and `juanpager/adapters` when the package is published.
 
 ## Transport adapters
 
@@ -138,6 +141,8 @@ The builder accepts both raw M1 packets and JuanPage 1.0 documents.
 JuanPager validates all data and renders only through trusted DOM APIs. It does not execute agent-authored HTML, JavaScript, CSS, scripts, iframes, or arbitrary component code. URLs must use HTTPS, except localhost during development.
 
 Informational packets may be unsigned. External execution adapters should additionally verify issuer, audience, expiration, digest, and signature before accepting action mutations. Capability negotiation can remove unsupported actions but can never grant permission.
+
+CI blocks high-severity vulnerabilities in production dependencies. Development-tool findings are tracked separately so they cannot be confused with shipped runtime exposure.
 
 Do not put secrets in share links. URL fragments can appear in browser history, screenshots, bookmarks, and copied messages.
 
