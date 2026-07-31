@@ -46,6 +46,10 @@ export type VerificationKey = Readonly<{
   issuer: string;
   keyId: string;
   publicKey: CryptoKey;
+  status?: "active" | "revoked";
+  validFrom?: Date;
+  validUntil?: Date;
+  capabilities?: readonly string[];
 }>;
 
 export interface NonceStore {
@@ -58,6 +62,7 @@ export type VerificationOptions = Readonly<{
   nonceStore: NonceStore;
   now?: Date;
   clockSkewMs?: number;
+  maxEnvelopeLifetimeMs?: number;
   requiredCapability?: string;
 }>;
 
@@ -72,6 +77,9 @@ export class MemoryNonceStore implements NonceStore {
   private readonly seen = new Map<string, number>();
 
   consume(issuer: string, nonce: string, expiresAt: Date): boolean {
+    const now = Date.now();
+    for (const [key, expiration] of this.seen) if (expiration <= now) this.seen.delete(key);
+    if (expiresAt.getTime() <= now) return false;
     const key = `${issuer}\u0000${nonce}`;
     if (this.seen.has(key)) return false;
     this.seen.set(key, expiresAt.getTime());
@@ -144,6 +152,24 @@ function assertEnvelopeShape<T>(input: SignedEnvelope<T>): void {
   if (!input.payloadDigest.startsWith("sha-256:")) throw new EnvelopeVerificationError("malformed_digest", "Unsupported payload digest.");
 }
 
+function verificationKey(
+  options: VerificationOptions,
+  issuer: string,
+  keyId: string,
+  signedAt: Date,
+  requireDirectCapability: boolean,
+): VerificationKey {
+  const key = options.keys.find((candidate) => candidate.issuer === issuer && candidate.keyId === keyId);
+  if (!key) throw new EnvelopeVerificationError("unknown_key", "Envelope signing key is unknown.");
+  if (key.status === "revoked") throw new EnvelopeVerificationError("revoked_key", "Envelope signing key has been revoked.");
+  if (key.validFrom && signedAt < key.validFrom) throw new EnvelopeVerificationError("key_not_yet_valid", "Envelope predates the signing key validity window.");
+  if (key.validUntil && signedAt >= key.validUntil) throw new EnvelopeVerificationError("key_expired", "Envelope was signed outside the key validity window.");
+  if (requireDirectCapability && options.requiredCapability && !key.capabilities?.includes(options.requiredCapability)) {
+    throw new EnvelopeVerificationError("missing_capability", "Signing key does not grant the required capability.");
+  }
+  return key;
+}
+
 async function signPayload<T>(payloadType: SignedPayloadType, payload: T, identity: SigningIdentity): Promise<SignedEnvelope<T>> {
   const issuedAt = identity.issuedAt ?? new Date();
   if (identity.expiresAt.getTime() <= issuedAt.getTime()) throw new EnvelopeVerificationError("invalid_lifetime", "Expiration must follow issuance.");
@@ -180,8 +206,7 @@ async function verifyDelegation(chain: readonly Delegation[] | undefined, envelo
     if (options.requiredCapability && !delegation.capabilities.includes(options.requiredCapability)) {
       throw new EnvelopeVerificationError("invalid_delegation", "Delegation does not grant the required capability.");
     }
-    const key = options.keys.find((candidate) => candidate.issuer === delegation.issuer && candidate.keyId === delegation.keyId);
-    if (!key) throw new EnvelopeVerificationError("unknown_key", "Delegation signing key is unknown.");
+    const key = verificationKey(options, delegation.issuer, delegation.keyId, issuedAt, false);
     const { signature, ...body } = delegation;
     const valid = await cryptoApi().subtle.verify("Ed25519", key.publicKey, decodeBase64Url(signature) as BufferSource, encoder.encode(canonicalize(body)));
     if (!valid) throw new EnvelopeVerificationError("invalid_delegation", "Delegation signature is invalid.");
@@ -197,12 +222,14 @@ async function verifyPayload<T>(input: SignedEnvelope<T>, payloadType: SignedPay
   const expiresAt = parseTimestamp(input.expiresAt, "expiresAt");
   const now = options.now ?? new Date();
   const skew = options.clockSkewMs ?? 30_000;
+  const maximumLifetime = options.maxEnvelopeLifetimeMs ?? 5 * 60_000;
+  if (!Number.isFinite(maximumLifetime) || maximumLifetime <= 0) throw new EnvelopeVerificationError("invalid_configuration", "Maximum envelope lifetime must be positive.");
   if (issuedAt.getTime() > now.getTime() + skew) throw new EnvelopeVerificationError("not_yet_valid", "Envelope issuance is in the future.");
   if (expiresAt.getTime() <= now.getTime() - skew) throw new EnvelopeVerificationError("expired", "Envelope has expired.");
   if (expiresAt <= issuedAt) throw new EnvelopeVerificationError("malformed_timestamp", "Envelope lifetime is invalid.");
+  if (expiresAt.getTime() - issuedAt.getTime() > maximumLifetime) throw new EnvelopeVerificationError("lifetime_too_long", "Envelope lifetime exceeds verifier policy.");
   if (await digest(input.payload) !== input.payloadDigest) throw new EnvelopeVerificationError("digest_mismatch", "Payload digest does not match.");
-  const key = options.keys.find((candidate) => candidate.issuer === input.issuer && candidate.keyId === input.keyId);
-  if (!key) throw new EnvelopeVerificationError("unknown_key", "Envelope signing key is unknown.");
+  const key = verificationKey(options, input.issuer, input.keyId, issuedAt, !input.delegation?.length);
   const { signature, ...body } = input;
   const valid = await cryptoApi().subtle.verify("Ed25519", key.publicKey, decodeBase64Url(signature) as BufferSource, encoder.encode(unsignedEnvelope(body)));
   if (!valid) throw new EnvelopeVerificationError("invalid_signature", "Envelope signature is invalid.");
