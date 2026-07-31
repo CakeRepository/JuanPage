@@ -24,6 +24,8 @@ const RETIRED_PATHS = [
   "src/schema/document.ts",
   "src/schema/moment.ts",
   "src/schema/anyDocument.ts",
+  "src/sources/DocumentSource.ts",
+  "src/sources/FragmentDocumentSource.ts",
   "src/state/localState.ts",
   "src/protocol/receipt.ts",
   "src/dialect/juan.ts",
@@ -180,4 +182,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log("One-schema invariant verified: retired schema, renderer behavior, and visual-system files are absent; M1 compiles into JuanPage 2.0; renderPage is the only renderer; information is inert without bindings; and human facts, scopes, selections, and operations produce typed deltas and receipts.");
+console.log("One-schema invariant verified: retired schema, renderer behavior, source adapters, and visual-system files are absent; M1 compiles into JuanPage 2.0; renderPage is the only renderer; information is inert without bindings; and human facts, scopes, selections, and operations produce typed deltas and receipts.");
