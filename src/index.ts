@@ -1,5 +1,4 @@
 export * from "./schema/page.js";
-export * from "./schema/value.js";
 export * from "./projection/universal.js";
 export * from "./protocol/meaning.js";
 export * from "./protocol/envelope.js";
