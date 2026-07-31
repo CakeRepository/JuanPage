@@ -1,31 +1,48 @@
 # Changelog
 
-All notable changes are documented here. The project follows Semantic Versioning after its first public package release.
+All notable changes are documented here. Package releases use Semantic Versioning. JuanPage, M1, envelope, and URL formats carry their own explicit protocol versions.
 
 ## Unreleased
 
 ### Added
 
+- JuanPage 2.0 semantic information, affordance, binding, scope, selection, and projection model.
+- Adaptive `renderPage` interaction surface where unbound information remains inert.
+- Typed M1 scope and selection deltas and record-only v5 URL sessions.
 - Ed25519 signed envelopes for M1 packets, deltas, and action receipts.
-- Audience, lifetime, nonce replay, key ID, digest, algorithm, and delegation verification.
+- Key status, signing validity windows, direct-key capabilities, delegated capabilities, and bounded envelope lifetimes.
+- Durable atomic `FileNonceStore` for Node hosts and a public `juanpager/node` entrypoint.
 - Executable AG-UI and MCP App bridge flows with integration fixtures.
-- Deterministic deployment reference scenario across Canvas, Data, Flow, and machine adapters.
-- Reproducible size, timing, rejection, and determinism benchmarks.
-- Public API export baseline and npm package dry-run checks.
-- npm provenance and GitHub release workflows with dry-run support.
-- Security policy, threat model, ADR, versioning, compatibility, migration, and contributor documentation.
+- Deterministic hostile-input conformance fuzzing.
+- Desktop and mobile Playwright semantic interaction journeys.
+- Clean-room packed SDK consumer verification using only public package exports.
+- Reproducible size, timing, rejection, determinism, and enforced performance-budget checks.
+- Commit-specific CI evidence bundles containing benchmark reports, SBOM data, and browser failure evidence.
+- Release tarballs, CycloneDX SBOMs, SHA-256 checksums, benchmark evidence, npm provenance configuration, and tag/version identity checks.
+- Security policy, threat model, ADRs, conformance levels, performance budgets, versioning, and contributor documentation.
 
 ### Security
 
-- Executable trust can now be cryptographically bound to an issuer and audience.
-- Duplicate nonces, altered payloads, expired envelopes, unknown keys, invalid delegation, malformed timestamps, wrong audiences, and unsupported algorithms fail closed.
+- Executable trust can be cryptographically bound to an issuer, audience, key lifecycle, capability, and maximum lifetime policy.
+- Duplicate nonces, altered payloads, expired envelopes, excessive lifetimes, revoked keys, out-of-window keys, missing capabilities, unknown keys, invalid delegation, malformed timestamps, wrong audiences, and unsupported algorithms fail closed.
+- Untrusted packets retain safe local interaction while invocation and navigation authority are removed.
+- Persisted replay state fails closed when corrupt.
+
+### Breaking
+
+- JuanPage 1.x is replaced by JuanPage 2.0.
+- Object-owned `actions`, `actionIds`, object interaction flags, and agent-authored lens configuration are removed from the canonical model.
+- Share fragments v3 and v4 are replaced by v5.
+- Verification now enforces a default maximum envelope lifetime of five minutes unless explicitly widened by verifier policy.
+- A requested direct-key capability must be explicitly present on the verification key when no delegation chain is supplied.
 
 ### Compatibility
 
-- JuanPage 1.0 remains the only public UI schema.
+- JuanPage 2.0 is the only public UI schema.
 - `renderPage` remains the only renderer.
-- Raw unsigned M1 remains available for informational rendering but is not trusted execution authority.
+- M1 remains semantic transport rather than a component tree.
+- Raw unsigned M1 remains available for informational rendering but is not trusted invocation or navigation authority.
 
 ## 1.0.0 - Unpublished
 
-Repository version reserved for JuanPage 1.0 and M1 development. No npm publication is claimed by this changelog.
+The package version remains an unpublished repository placeholder. No npm publication or external adoption is claimed by this changelog.
