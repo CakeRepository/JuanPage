@@ -5,8 +5,11 @@ on:
     branches: [main, master]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
-  test:
+  verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -15,9 +18,23 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Audit production dependencies
+      - name: Production dependency audit
         run: npm audit --omit=dev --audit-level=high
-      - run: npm run check:one-runtime
-      - run: npm run lint
-      - run: npm test
-      - run: npm run build
+      - name: Architecture invariant
+        run: npm run check:one-runtime
+      - name: Lint
+        run: npm run lint
+      - name: Unit tests
+        run: npm run test:unit
+      - name: Integration tests
+        run: npm run test:integration
+      - name: Conformance tests
+        run: npm run test:conformance
+      - name: Application and SDK build
+        run: npm run build
+      - name: Public API compatibility
+        run: npm run check:public-api
+      - name: npm package dry run
+        run: npm run package:dry-run
+      - name: Benchmark smoke test
+        run: npm run benchmark:smoke

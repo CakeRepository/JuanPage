@@ -4,11 +4,11 @@ import { LIMITS, LIMITS_HELP } from "../schema/limits.js";
 import { validatePage, type JuanPageDocument } from "../schema/page.js";
 import {
   browserRendererCapabilities,
-  materializeMeaningPacket,
   validateMeaningPacket,
   type MeaningPacket,
   type RendererCapabilities,
 } from "../protocol/meaning.js";
+import { materializeUntrustedMeaningPacket } from "../protocol/trust-projection.js";
 
 export type PagePayloadEncoding = "gz" | "raw";
 export const DEFAULT_PAGE_ENCODING: PagePayloadEncoding = "gz";
@@ -110,7 +110,7 @@ export async function decodePage(
   }
 
   if (parsed && typeof parsed === "object" && "transport" in parsed && (parsed as MeaningEnvelope).transport === "m1") {
-    return materializeMeaningPacket((parsed as MeaningEnvelope).packet, capabilities);
+    return materializeUntrustedMeaningPacket((parsed as MeaningEnvelope).packet, capabilities);
   }
   return validatePage(parsed);
 }

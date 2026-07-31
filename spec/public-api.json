@@ -1,0 +1,13 @@
+{
+  "exports": [
+    ".",
+    "./adapters",
+    "./adapters/agui",
+    "./adapters/mcp-app",
+    "./browser",
+    "./envelope",
+    "./node",
+    "./protocol",
+    "./transport"
+  ]
+}

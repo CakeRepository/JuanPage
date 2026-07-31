@@ -2,114 +2,172 @@
 
 **One schema for everything. One UI for everything. Meaning moves without requiring human words.**
 
-JuanPager is an open-source semantic interaction runtime for humans and AI agents. Agents can send a canonical JuanPage 1.0 graph or an **M1 meaning packet** made of numeric opcodes, opaque symbols, typed facts, relationships, signals, evidence, permissions, and actions.
+JuanPager is an open-source semantic interaction protocol, TypeScript SDK, and trusted human interface runtime. Remote systems send semantic M1 packets; JuanPager verifies trust and capabilities, compiles them into JuanPage 1.0, and renders them through the single `renderPage` runtime.
 
-M1 does not render a second interface. It compiles into JuanPage 1.0, and the same trusted runtime projects that world as Canvas, Data, or Flow.
-
-```mermaid
-flowchart LR
-  A[Agent cognition] --> B[M1 symbols and typed facts]
-  B --> C[Trust and capability compiler]
-  C --> D[JuanPage 1.0]
-  D --> E[Universal runtime]
-  E --> F[Human action]
-  F --> G[Revisioned M1 delta]
-  G --> H[Action receipt]
-  H --> A
+```text
+M1 semantic transport
+→ trust and capability compiler
+→ JuanPage 1.0
+→ renderPage
+→ typed human deltas and receipts
 ```
 
-## Why this is different
+M1 is not a component tree. External adapters are not alternate UI schemas. JuanPage 1.0 is the only public UI schema and `renderPage` is the only renderer.
 
-Most generative UI systems ask an agent to describe components. JuanPager asks the agent to describe reality:
+## Project status
 
-- stable entities and properties
-- relationships and desired state
-- evidence, confidence, and attention signals
-- available operations and permission policy
-- human mutations returned as typed deltas
+| Area | Status | Evidence |
+|---|---|---|
+| JuanPage 1.0 schema and `renderPage` | Implemented | application, schema, renderer, tests |
+| M1 packets, permissions, capabilities, deltas, receipts | Implemented | `spec/M1.md`, conformance tests |
+| Ed25519 signed packets, deltas, and receipts | Implemented | `src/protocol/envelope.ts`, adversarial tests |
+| AG-UI action/event bridge | Implemented and integration-tested | `src/adapters/agui.ts` |
+| MCP App signed proposal bridge | Implemented and integration-tested | `src/adapters/mcp-app.ts` |
+| A2UI projection | Experimental | shape adapter only; no conformance claim |
+| npm package | Release-ready configuration; not yet claimed published | package dry run and release workflow |
+| Ecosystem adoption | Not claimed | requires independent integrations |
+| Broader external conformance certification | Planned | requires ecosystem participation |
 
-English labels are only a vocabulary projection. The symbolic packet remains the same across locales, voice, mobile, accessibility surfaces, other agents, and future interfaces.
+## Ten-minute quick start
 
-## Trust is executable
-
-Permission records are enforced before rendering:
-
-- **Allow** — the action is available.
-- **Deny** — the action never reaches the renderer.
-- **Approval required** — the action becomes a proposal and cannot mutate state directly.
-
-Executable actions carry an idempotency key and produce lifecycle receipts: proposed, authorized, executing, succeeded, failed, rejected, or cancelled.
-
-## M1 packet
-
-```json
-[
-  1,
-  "pkt:release",
-  4,
-  "vocab:en",
-  [["txt:title", "Launch control"], ["type:release", "Release"]],
-  [
-    [0, [0, "txt:title"], null, null, 2, 0, 0, 0],
-    [1, "e:release", "type:release", [1, "JuanPage 1.0"], null, null, 1, null, ["a:deploy"], []],
-    [4, "a:deploy", 6, [1, "Deploy"], "e:release", null, ["e:release"], 2, null, "op:deploy"],
-    [8, "a:deploy", 2, [1, "Deployment requires human approval"]]
-  ]
-]
-```
-
-The normative tuple definitions and opcode registry are in [`spec/M1.md`](spec/M1.md) and [`spec/opcodes.json`](spec/opcodes.json).
-
-## Human-to-agent delta
-
-```json
-[
-  1,
-  "pkt:release",
-  4,
-  5,
-  [[31, "mut:a:deploy:5", "actor:human:browser", "a:deploy", "e:release", {}, "idem:pkt:release:5:a:deploy", "2026-07-31T21:00:00.000Z"]]
-]
-```
-
-The agent receives a typed proposal, not a sentence to reinterpret.
-
-## SDK
-
-The repository is configured to publish a typed ESM package. Until the first npm release is cut, build the SDK locally:
+Requires Node.js 22.
 
 ```bash
-npm install
-npm run build:sdk
+git clone https://github.com/CakeRepository/juanpager.git
+cd juanpager
+npm ci
+npm run check:one-runtime
+npm test
+npm run dev
 ```
+
+The deterministic deployment reference is in `src/examples/reference-deployment.ts`. It projects the same packet into desktop Canvas, compact mobile Data, Flow, and machine adapter output.
+
+## Minimal SDK example
 
 ```ts
 import {
   materializeMeaningPacket,
   createActionDelta,
-  createHttpTransport,
-  toMcpAppResource,
+  MemoryNonceStore,
+  verifyMeaningPacket,
 } from "juanpager";
 
+const packet = await verifyMeaningPacket(signedEnvelope, {
+  audience: "juanpager:production",
+  keys: [{ issuer: "agent:deployment", keyId: "key:2026-01", publicKey }],
+  nonceStore: new MemoryNonceStore(), // replace with durable atomic storage in production
+});
+
 const page = materializeMeaningPacket(packet, capabilities);
-const delta = createActionDelta(packet[1], packet[2], actorId, actionId, targetId, {}, "approval");
-await createHttpTransport("https://agent.example/m1").send({ version: 1, kind: "delta", payload: delta });
-const resource = toMcpAppResource(page);
+const delta = createActionDelta(
+  packet[1],
+  packet[2],
+  "actor:human:browser",
+  "action:deploy",
+  "deployment:chrome-128",
+  {},
+  "approval",
+);
 ```
 
-Exports are prepared for `juanpager/protocol`, `juanpager/transport`, and `juanpager/adapters` when the package is published.
+## Signed packet example
 
-## Transport adapters
+```ts
+import { generateEd25519KeyPair, signMeaningPacket, verifyMeaningPacket } from "juanpager/envelope";
 
-JuanPager includes framework-neutral adapters for:
+const keys = await generateEd25519KeyPair();
+const envelope = await signMeaningPacket(packet, {
+  issuer: "agent:deployment",
+  audience: "juanpager:reference",
+  keyId: "key:2026-01",
+  privateKey: keys.privateKey,
+  expiresAt: new Date(Date.now() + 60_000),
+});
 
-- browser events
-- `postMessage`
-- HTTPS
-- WebSocket
-- in-memory testing
+const verified = await verifyMeaningPacket(envelope, {
+  audience: "juanpager:reference",
+  keys: [{ issuer: "agent:deployment", keyId: "key:2026-01", publicKey: keys.publicKey }],
+  nonceStore,
+});
+```
 
-It also includes bridge models for A2UI-style surfaces, AG-UI state events, and MCP App resources. These bridges derive from JuanPage 1.0; they do not create alternate product schemas.
+Verification rejects altered payloads, expired envelopes, wrong audiences, duplicate nonces, unknown keys, invalid delegation, unsupported algorithms, and malformed timestamps. Signatures provide integrity and configured-key authenticity, not confidentiality, identity discovery, key revocation, or proof that an external executor acted honestly. See [`SECURITY.md`](SECURITY.md) and [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md).
+
+Unsigned packets may render as untrusted information. Hosts must not expose their executable actions.
+
+## Adapter examples
+
+```ts
+import { bridgeMeaningActionToAGUI } from "juanpager/adapters/agui";
+
+const result = bridgeMeaningActionToAGUI({
+  packet,
+  actorId: "actor:human:browser",
+  actionId: "action:deploy",
+  targetId: "deployment:chrome-128",
+  policy: "approval",
+  timestamp: new Date().toISOString(),
+});
+
+// result.page is JuanPage 1.0
+// result.delta is a typed M1 proposal
+// result.events is the AG-UI-compatible event sequence
+// result.receipt records the proposal lifecycle
+```
+
+The MCP App bridge accepts a tool result containing a signed M1 envelope, verifies it, materializes JuanPage, and returns a typed decision to the host. Protocol-specific fields remain inside adapter modules.
+
+## Security model
+
+JuanPager renders through trusted DOM APIs and never executes agent-authored HTML, CSS, JavaScript, iframes, arbitrary components, or network code. Display vocabulary, localized labels, embeddings, and latent vectors never grant identity, permission, signature, or execution authority.
+
+Executable actions fail closed. Capability negotiation can remove actions but cannot grant permission. Safe informational rendering remains available where verification or authorization does not permit execution.
+
+## SDK and release readiness
+
+```bash
+npm run build:sdk
+npm run check:public-api
+npm run package:dry-run
+npm run release:dry-run
+```
+
+The package exports browser, Node, protocol, envelope, transport, and adapter entrypoints with generated declarations. GitHub Actions includes a manual dry run and tag-triggered npm publishing with provenance. This repository does not claim that an npm package has already been published.
+
+## Benchmarks
+
+```bash
+npm run benchmark:m1
+```
+
+The benchmark compares M1, canonical JuanPage JSON, neutral component-tree JSON, and natural-language UI instructions. It reports raw bytes, gzip bytes, approximate tokens, validation, materialization, `renderPage` timing, invalid-output rejection, and deterministic cross-run consistency as JSON and Markdown in `benchmark/results/`.
+
+The report explicitly records where M1 is larger, slower, or less convenient. JuanPage is faster when a producer already owns canonical JuanPage data; M1 adds validation and materialization work in exchange for semantic transport, trust, capability negotiation, stable identity, and typed round trips.
+
+## Development and conformance
+
+```bash
+npm audit --omit=dev --audit-level=high
+npm run check:one-runtime
+npm run lint
+npm run test:unit
+npm run test:integration
+npm run test:conformance
+npm run build
+npm run check:public-api
+npm run package:dry-run
+npm run benchmark:smoke
+```
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md), [`docs/VERSIONING.md`](docs/VERSIONING.md), [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md), and [`docs/MIGRATION_SIGNED_ENVELOPES.md`](docs/MIGRATION_SIGNED_ENVELOPES.md).
+
+## Specification
+
+- [`spec/M1.md`](spec/M1.md): M1 semantic packet, delta, trust, and receipt contract
+- [`spec/opcodes.json`](spec/opcodes.json): machine-readable opcode registry
+- [`spec/public-api.json`](spec/public-api.json): package export compatibility baseline
+- [`docs/adr/0001-signed-m1-envelopes.md`](docs/adr/0001-signed-m1-envelopes.md): cryptographic envelope decision
 
 ## Share format
 
@@ -117,44 +175,7 @@ It also includes bridge models for A2UI-style surfaces, AG-UI state events, and 
 https://CakeRepository.github.io/juanpager/#v=3&enc=gz&data=ENCODED_PAYLOAD
 ```
 
-The v3 payload may contain a canonical JuanPage or an M1 envelope. Content lives in the URL fragment and is rendered locally.
-
-## Run
-
-```bash
-npm install
-npm run check:one-runtime
-npm test
-npm run build
-npm run benchmark:m1
-npm run dev
-```
-
-Viewer: `http://localhost:5173/juanpager/`
-
-Builder: `http://localhost:5173/juanpager/builder.html`
-
-The builder accepts both raw M1 packets and JuanPage 1.0 documents.
-
-## Security
-
-JuanPager validates all data and renders only through trusted DOM APIs. It does not execute agent-authored HTML, JavaScript, CSS, scripts, iframes, or arbitrary component code. URLs must use HTTPS, except localhost during development.
-
-Informational packets may be unsigned. External execution adapters should additionally verify issuer, audience, expiration, digest, and signature before accepting action mutations. Capability negotiation can remove unsupported actions but can never grant permission.
-
-CI blocks high-severity vulnerabilities in production dependencies. Development-tool findings are tracked separately so they cannot be confused with shipped runtime exposure.
-
-Do not put secrets in share links. URL fragments can appear in browser history, screenshots, bookmarks, and copied messages.
-
-## Architecture invariant
-
-There is exactly one public UI schema and one renderer:
-
-```text
-M1 transport → JuanPage 1.0 → renderPage
-```
-
-CI rejects retired runtime imports, alternate renderers, missing typed deltas, or executable M1 actions without receipt support.
+Share fragments render locally. Do not put secrets in them; fragments can appear in browser history, screenshots, bookmarks, and copied messages.
 
 ## License
 
