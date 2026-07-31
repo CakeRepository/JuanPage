@@ -122,10 +122,10 @@ export function validatePage(input: unknown): JuanPageDocument {
       if (fieldKeys.has(field.key)) throw new DocumentValidationError("This JuanPage is invalid.", `Object "${object.id}" has duplicate field key "${field.key}".`);
       fieldKeys.add(field.key);
     }
-    if ((object.actionIds?.length || object.url) && object.interaction !== "inspect") {
+    if ((object.actionIds?.length || object.url) && object.interaction === "display") {
       throw new DocumentValidationError(
         "This JuanPage is invalid.",
-        `Object "${object.id}" must declare interaction "inspect" before it can expose actions or hidden navigation.`,
+        `Object "${object.id}" cannot declare display-only interaction while exposing actions or hidden navigation.`,
       );
     }
   }
