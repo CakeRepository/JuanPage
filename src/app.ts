@@ -1,36 +1,65 @@
-import { clearFragment, docsUrl, parseFragment } from "./encoding/fragment.js";
-import { encodeToFragment, PayloadLimitError } from "./encoding/pipeline.js";
-import { groceryCheckout } from "./examples/grocery-checkout.js";
-import { decodeMomentReceipt, stateFromReceipt } from "./protocol/receipt.js";
-import { renderDocument, renderError } from "./rendering/render.js";
-import { renderMomentWithReturn } from "./rendering/renderMomentWithReturn.js";
-import { renderWelcome } from "./rendering/renderWelcome.js";
-import type { LoadedDocument } from "./schema/anyDocument.js";
+import { builderPath, getAppBasePath, parseFragment } from "./encoding/fragment.js";
+import {
+  buildPageShareUrl,
+  decodePage,
+  PagePayloadError,
+  type PagePayloadEncoding,
+} from "./encoding/pagePipeline.js";
+import { futureWorkspace } from "./examples/future-workspace.js";
+import { renderPage } from "./rendering/renderPage.js";
+import type { JuanPageDocument } from "./schema/page.js";
 import { DocumentValidationError } from "./schema/document.js";
-import { FragmentDocumentSource } from "./sources/FragmentDocumentSource.js";
-import { momentStateKey, saveLocalState } from "./state/localState.js";
 
-function renderLoaded(loaded: LoadedDocument, mount: HTMLElement, hash: string): void {
-  if (loaded.kind === "moment") {
-    const receiptToken = parseFragment(hash).receipt;
-    if (receiptToken) {
-      try {
-        const state = stateFromReceipt(loaded.document, decodeMomentReceipt(receiptToken));
-        saveLocalState(momentStateKey(loaded.document), state);
-      } catch (error) {
-        console.warn("Ignoring invalid JuanPager receipt overlay", error);
-      }
-    }
-    renderMomentWithReturn(loaded.document, mount);
-    return;
-  }
-  renderDocument(loaded.document, mount);
+function appBaseUrl(): string {
+  return new URL(getAppBasePath(), window.location.origin).toString();
 }
 
-async function loadDemo(): Promise<void> {
-  const fragment = await encodeToFragment(groceryCheckout);
-  window.location.hash = fragment.startsWith("#") ? fragment.slice(1) : fragment;
-  await bootstrap();
+function errorPage(error: unknown): JuanPageDocument {
+  const validation = error instanceof DocumentValidationError;
+  const payload = error instanceof PagePayloadError;
+  const details =
+    validation || payload
+      ? error.details
+      : error instanceof Error
+        ? error.stack ?? error.message
+        : String(error);
+
+  return {
+    version: "1.0",
+    title: "This world could not be opened",
+    intent: "JuanPager rejected data it could not safely understand.",
+    description:
+      "JuanPage 1.0 is the only public contract. The link may be truncated, malformed, or built for a retired schema.",
+    theme: "dark",
+    view: { defaultLens: "cards", groupBy: "none" },
+    metrics: [
+      { id: "safety", label: "Renderer state", operation: "value", value: "Safe failure" },
+      { id: "schema", label: "Expected schema", operation: "value", value: "JuanPage 1.0" },
+    ],
+    objects: [
+      {
+        id: "error",
+        type: "system-error",
+        name: validation || payload ? error.message : "Unable to decode this JuanPage",
+        status: "Blocked",
+        tone: "danger",
+        summary: "No untrusted markup or partial document was rendered.",
+        fields: [
+          { key: "details", value: details.slice(0, 2000), format: "code" },
+          { key: "recovery", value: "Return home or rebuild the page with the JuanPage 1.0 builder." },
+        ],
+        actionIds: ["open-repository"],
+      },
+    ],
+    actions: [
+      {
+        id: "open-repository",
+        kind: "open",
+        label: "Open documentation",
+        url: "https://github.com/CakeRepository/juanpager#readme",
+      },
+    ],
+  };
 }
 
 async function bootstrap(): Promise<void> {
@@ -38,50 +67,30 @@ async function bootstrap(): Promise<void> {
   if (!mount) return;
 
   const hash = window.location.hash;
-  if (!hash || !hash.includes("data=")) {
-    renderWelcome(mount, {
-      onDemo: () => {
-        void loadDemo();
-      },
-      docsHref: docsUrl(),
+  const fragment = parseFragment(hash);
+
+  if (!fragment.data) {
+    renderPage(futureWorkspace, mount, {
+      builderHref: builderPath(),
+      onShare: () => buildPageShareUrl(futureWorkspace, appBaseUrl()),
     });
     return;
   }
 
   try {
-    const source = new FragmentDocumentSource(hash);
-    renderLoaded(await source.load(), mount, hash);
-  } catch (error) {
-    const title =
-      error instanceof PayloadLimitError || error instanceof DocumentValidationError
-        ? error.message
-        : "Unable to open this JuanPager";
-    const explanation =
-      error instanceof PayloadLimitError
-        ? "The embedded document is too large or malformed for this format."
-        : error instanceof DocumentValidationError
-          ? "The document failed schema validation. Agents must emit only supported moments, entities, affordances, and safe URLs."
-          : "Decoding or validation failed. The link may be truncated, corrupted, or built for a newer format.";
-    const details =
-      error instanceof DocumentValidationError || error instanceof PayloadLimitError
-        ? error.details
-        : error instanceof Error
-          ? error.stack ?? error.message
-          : String(error);
-
-    renderError(mount, {
-      title,
-      explanation,
-      details,
-      onDemo: () => {
-        void loadDemo();
-      },
-      onClear: () => {
-        clearFragment();
-        void bootstrap();
-      },
-      docsHref: docsUrl(),
+    if (fragment.version && fragment.version !== "3") {
+      throw new Error(`Unsupported fragment version v=${fragment.version}. JuanPage 1.0 uses v=3.`);
+    }
+    const page = await decodePage(
+      fragment.data,
+      fragment.encoding as PagePayloadEncoding | undefined,
+    );
+    renderPage(page, mount, {
+      builderHref: builderPath(),
+      onShare: () => window.location.href,
     });
+  } catch (error) {
+    renderPage(errorPage(error), mount, { builderHref: builderPath() });
   }
 }
 
