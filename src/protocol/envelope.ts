@@ -183,7 +183,7 @@ async function verifyDelegation(chain: readonly Delegation[] | undefined, envelo
     const key = options.keys.find((candidate) => candidate.issuer === delegation.issuer && candidate.keyId === delegation.keyId);
     if (!key) throw new EnvelopeVerificationError("unknown_key", "Delegation signing key is unknown.");
     const { signature, ...body } = delegation;
-    const valid = await cryptoApi().subtle.verify("Ed25519", key.publicKey, decodeBase64Url(signature), encoder.encode(canonicalize(body)));
+    const valid = await cryptoApi().subtle.verify("Ed25519", key.publicKey, decodeBase64Url(signature) as BufferSource, encoder.encode(canonicalize(body)));
     if (!valid) throw new EnvelopeVerificationError("invalid_delegation", "Delegation signature is invalid.");
     expectedIssuer = delegation.issuer;
   }
@@ -204,7 +204,7 @@ async function verifyPayload<T>(input: SignedEnvelope<T>, payloadType: SignedPay
   const key = options.keys.find((candidate) => candidate.issuer === input.issuer && candidate.keyId === input.keyId);
   if (!key) throw new EnvelopeVerificationError("unknown_key", "Envelope signing key is unknown.");
   const { signature, ...body } = input;
-  const valid = await cryptoApi().subtle.verify("Ed25519", key.publicKey, decodeBase64Url(signature), encoder.encode(unsignedEnvelope(body)));
+  const valid = await cryptoApi().subtle.verify("Ed25519", key.publicKey, decodeBase64Url(signature) as BufferSource, encoder.encode(unsignedEnvelope(body)));
   if (!valid) throw new EnvelopeVerificationError("invalid_signature", "Envelope signature is invalid.");
   await verifyDelegation(input.delegation, input, options);
   if (!(await options.nonceStore.consume(input.issuer, input.nonce, expiresAt))) throw new EnvelopeVerificationError("replayed_nonce", "Envelope nonce has already been consumed.");
