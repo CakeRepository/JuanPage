@@ -31,10 +31,18 @@ export function bridgeMeaningActionToAGUI(input: Readonly<{
   timestamp: string;
 }>): AGUIBridgeResult {
   const page = materializeMeaningPacket(input.packet, input.capabilities);
-  const delta = createActionDelta(input.packet[1], input.packet[2], input.actorId, input.actionId, input.targetId, input.arguments ?? {}, input.policy, input.timestamp);
+  const delta = createActionDelta(
+    input.packet[1],
+    input.packet[2],
+    input.actorId,
+    input.actionId,
+    input.targetId,
+    input.arguments ?? {},
+    input.policy,
+    { timestamp: input.timestamp },
+  );
   const mutation = delta[4][0];
   const mutationId = String(mutation?.[1] ?? `mutation:${input.actionId}`);
-  const idempotencyKey = String(mutation?.[6] ?? `idem:${mutationId}`);
   const runId = `run:${mutationId}`;
   const threadId = input.packet[1];
   const events: AGUIEvent[] = [
@@ -44,19 +52,7 @@ export function bridgeMeaningActionToAGUI(input: Readonly<{
     { type: "TOOL_CALL_ARGS", threadId, runId, toolCallId: mutationId, delta: JSON.stringify(input.arguments ?? {}) },
     { type: "TOOL_CALL_END", threadId, runId, toolCallId: mutationId },
   ];
-  const receipt = createActionReceipt({
-    receiptId: `receipt:${mutationId}`,
-    packetId: input.packet[1],
-    mutationId,
-    actionId: input.actionId,
-    revision: delta[3],
-    state: input.policy === "approval" ? "proposed" : "authorized",
-    timestamp: input.timestamp,
-    actorId: input.actorId,
-    idempotencyKey,
-    evidenceIds: [],
-    details: {},
-  });
+  const receipt = createActionReceipt(delta, input.policy === "approval" ? "proposed" : "authorized");
   events.push({ type: "RUN_FINISHED", threadId, runId, result: receipt });
   return { page, delta, events, receipt };
 }
