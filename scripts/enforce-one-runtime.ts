@@ -5,10 +5,13 @@ const UNIVERSAL_SURFACES = [
   "src/builder.ts",
   "src/rendering/renderPage.ts",
   "src/state/pageState.ts",
+  "src/protocol/meaning.ts",
+  "src/encoding/pagePipeline.ts",
   "scripts/encode.ts",
   "scripts/decode.ts",
   "tests/page.test.ts",
   "tests/renderPage.test.ts",
+  "tests/meaning.test.ts",
 ] as const;
 
 const FORBIDDEN_IMPORTS = [
@@ -22,47 +25,34 @@ const FORBIDDEN_IMPORTS = [
   "/sources/",
 ] as const;
 
-const FORBIDDEN_PUBLIC_VERSIONS = [
-  'version: "0.1"',
-  'version: "0.2"',
-  'v=1',
-  'v=2',
-] as const;
+const FORBIDDEN_PUBLIC_VERSIONS = ['version: "0.1"', 'version: "0.2"', 'v=1', 'v=2'] as const;
 
 const REQUIRED_IMPORTS: Record<string, readonly string[]> = {
-  "src/app.ts": ["/schema/page", "/rendering/renderPage", "/encoding/pagePipeline"],
+  "src/app.ts": ["/schema/page", "/rendering/renderPage", "/encoding/pagePipeline", "/protocol/meaning"],
   "src/builder.ts": ["/schema/page", "/rendering/renderPage", "/encoding/pagePipeline"],
   "src/rendering/renderPage.ts": ["/schema/page", "/state/pageState"],
   "src/state/pageState.ts": ["/schema/page"],
+  "src/protocol/meaning.ts": ["/schema/page"],
+  "src/encoding/pagePipeline.ts": ["/schema/page", "/protocol/meaning"],
   "scripts/encode.ts": ["/schema/page", "/encoding/pagePipeline"],
   "scripts/decode.ts": ["/encoding/pagePipeline"],
   "tests/page.test.ts": ["/schema/page", "/schema/errors", "/encoding/pagePipeline"],
   "tests/renderPage.test.ts": ["/rendering/renderPage"],
+  "tests/meaning.test.ts": ["/protocol/meaning", "/encoding/pagePipeline"],
 };
 
 const failures: string[] = [];
-
 for (const path of UNIVERSAL_SURFACES) {
   const source = await readFile(path, "utf8");
-
-  for (const forbidden of FORBIDDEN_IMPORTS) {
-    if (source.includes(forbidden)) {
-      failures.push(`${path} imports retired public runtime path: ${forbidden}`);
-    }
-  }
-
-  for (const version of FORBIDDEN_PUBLIC_VERSIONS) {
-    if (source.includes(version)) {
-      failures.push(`${path} exposes retired public format marker: ${version}`);
-    }
-  }
-
-  for (const required of REQUIRED_IMPORTS[path] ?? []) {
-    if (!source.includes(required)) {
-      failures.push(`${path} must depend on the universal runtime path: ${required}`);
-    }
-  }
+  for (const forbidden of FORBIDDEN_IMPORTS) if (source.includes(forbidden)) failures.push(`${path} imports retired public runtime path: ${forbidden}`);
+  for (const version of FORBIDDEN_PUBLIC_VERSIONS) if (source.includes(version)) failures.push(`${path} exposes retired public format marker: ${version}`);
+  for (const required of REQUIRED_IMPORTS[path] ?? []) if (!source.includes(required)) failures.push(`${path} must depend on the universal runtime path: ${required}`);
 }
+
+const meaning = await readFile("src/protocol/meaning.ts", "utf8");
+if (!meaning.includes("materializeMeaningPacket")) failures.push("M1 must materialize into JuanPage 1.0.");
+if (!meaning.includes("createFactDelta")) failures.push("M1 must return human mutations as typed deltas.");
+if (meaning.includes("renderMeaning")) failures.push("M1 may not introduce a second renderer.");
 
 if (failures.length > 0) {
   console.error("JuanPager must expose exactly one public schema and one public runtime.\n");
@@ -70,4 +60,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log("One-schema invariant verified across runtime, state, CLI, and tests.");
+console.log("One-schema invariant verified: M1 transport compiles into JuanPage 1.0 and the universal runtime.");
