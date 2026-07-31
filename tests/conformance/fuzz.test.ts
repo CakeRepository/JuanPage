@@ -37,6 +37,19 @@ function expectSafeRejection(operation: () => unknown): void {
   }
 }
 
+function rejectionDetails(operation: () => unknown): string {
+  try {
+    operation();
+  } catch (error) {
+    expect(error).toBeInstanceOf(Error);
+    if (typeof error === "object" && error !== null && "details" in error) {
+      return String((error as { details: unknown }).details);
+    }
+    return error instanceof Error ? error.message : String(error);
+  }
+  throw new Error("Expected hostile input to be rejected.");
+}
+
 describe("deterministic hostile-input conformance", () => {
   it("never crashes outside the documented error boundary for generated JSON values", () => {
     const next = generator(0x4a55414e);
@@ -52,21 +65,21 @@ describe("deterministic hostile-input conformance", () => {
       bindings: Array<{ affordance: string }>;
     };
     unknownAffordance.bindings[0]!.affordance = "missing-affordance";
-    expect(() => validatePage(unknownAffordance)).toThrow(/unknown affordance/iu);
+    expect(rejectionDetails(() => validatePage(unknownAffordance))).toMatch(/unknown affordance/iu);
 
     const unsafeNavigation = structuredClone(futureWorkspace) as unknown as {
       affordances: Array<{ effect: Record<string, unknown> }>;
     };
     unsafeNavigation.affordances[0]!.effect = { kind: "navigate", url: "javascript:alert(1)" };
-    expect(() => validatePage(unsafeNavigation)).toThrow();
+    expect(rejectionDetails(() => validatePage(unsafeNavigation))).toMatch(/url|https|invalid/iu);
 
     const unknownOpcode = structuredClone(operationsControlRoomPacket) as unknown as unknown[];
     (unknownOpcode[5] as unknown[][]).push([999, "authority:confusion"]);
-    expect(() => validateMeaningPacket(unknownOpcode)).toThrow(/opcode/iu);
+    expect(rejectionDetails(() => validateMeaningPacket(unknownOpcode))).toMatch(/opcode/iu);
 
     const unknownEntity = structuredClone(operationsControlRoomPacket) as unknown as unknown[];
     (unknownEntity[5] as unknown[][]).push([2, "missing:entity", "prop:test", true, null, 0, 0, null]);
-    expect(() => validateMeaningPacket(unknownEntity)).toThrow(/unknown entity/iu);
+    expect(rejectionDetails(() => validateMeaningPacket(unknownEntity))).toMatch(/unknown entity/iu);
   });
 
   it("remains deterministic after fuzzing attempts", () => {
