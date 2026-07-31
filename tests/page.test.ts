@@ -37,6 +37,46 @@ describe("JuanPage 1.0", () => {
     expect(page.actions?.at(-1)).toMatchObject({ target: "page", field: "mode" });
   });
 
+  it("allows information to declare itself display-only", () => {
+    const page = validatePage({
+      version: "1.0",
+      title: "Read only",
+      objects: [{ id: "datum", type: "datum", name: "Published total", interaction: "display" }],
+    });
+    expect(page.objects[0].interaction).toBe("display");
+  });
+
+  it("rejects hidden actions on an explicitly display-only object", () => {
+    expect(() => validatePage({
+      version: "1.0",
+      title: "False affordance",
+      objects: [{
+        id: "datum",
+        type: "datum",
+        name: "Published total",
+        interaction: "display",
+        actionIds: ["change"],
+      }],
+      actions: [{ id: "change", kind: "toggle", label: "Change", target: "datum", field: "changed" }],
+    })).toThrowError(DocumentValidationError);
+  });
+
+  it("requires range controls to declare real bounds", () => {
+    expect(() => validatePage({
+      version: "1.0",
+      title: "Broken range",
+      objects: [{ id: "datum", type: "datum", name: "Capacity", actionIds: ["capacity"] }],
+      actions: [{
+        id: "capacity",
+        kind: "number",
+        label: "Capacity",
+        target: "datum",
+        field: "capacity",
+        control: "range",
+      }],
+    })).toThrowError(DocumentValidationError);
+  });
+
   it("rejects relationships to unknown objects", () => {
     try {
       validatePage({
