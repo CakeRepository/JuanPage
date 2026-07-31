@@ -1,0 +1,39 @@
+{
+  "version": "1.0",
+  "records": {
+    "0": "header",
+    "1": "entity",
+    "2": "fact",
+    "3": "relation",
+    "4": "action",
+    "5": "metric",
+    "6": "signal",
+    "7": "evidence",
+    "8": "permission"
+  },
+  "mutations": {
+    "20": "set_fact",
+    "21": "remove_fact",
+    "30": "invoke_action",
+    "31": "propose_action",
+    "32": "approve_action",
+    "33": "reject_action",
+    "34": "cancel_action",
+    "35": "action_result",
+    "36": "action_failed"
+  },
+  "permissionPolicies": {
+    "0": "allow",
+    "1": "deny",
+    "2": "approval_required"
+  },
+  "receiptStates": {
+    "0": "proposed",
+    "1": "authorized",
+    "2": "executing",
+    "3": "succeeded",
+    "4": "failed",
+    "5": "rejected",
+    "6": "cancelled"
+  }
+}
