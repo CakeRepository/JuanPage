@@ -37,6 +37,7 @@ export const pageObjectSchema = z.object({
   group: optionalText(120),
   status: optionalText(80),
   tone: z.enum(["neutral","info","success","warning","danger"]).optional(),
+  interaction: z.enum(["display","inspect"]).optional(),
   imageUrl: safeUrl.optional(),
   url: safeUrl.optional(),
   tags: z.array(text(40)).max(LIMITS.maxBadges).optional(),
@@ -53,7 +54,17 @@ const actionBase = {
 const target = z.union([id, z.literal("page")]);
 
 const toggleActionSchema = z.object({ ...actionBase, kind: z.literal("toggle"), target, field: key, initial: z.boolean().optional() }).strict();
-const numberActionSchema = z.object({ ...actionBase, kind: z.literal("number"), target, field: key, initial: z.number().finite().optional(), min: z.number().finite().optional(), max: z.number().finite().optional(), step: z.number().finite().positive().optional() }).strict();
+const numberActionSchema = z.object({
+  ...actionBase,
+  kind: z.literal("number"),
+  target,
+  field: key,
+  initial: z.number().finite().optional(),
+  min: z.number().finite().optional(),
+  max: z.number().finite().optional(),
+  step: z.number().finite().positive().optional(),
+  control: z.enum(["entry","range"]).optional(),
+}).strict();
 const choiceActionSchema = z.object({ ...actionBase, kind: z.literal("choice"), target, field: key, initial: z.string().max(200).optional(), options: z.array(z.object({ label: text(100), value: z.string().max(200) }).strict()).min(2).max(30) }).strict();
 const textActionSchema = z.object({ ...actionBase, kind: z.literal("text"), target, field: key, initial: z.string().max(LIMITS.maxTextLength).optional(), placeholder: optionalText(160), multiline: z.boolean().optional() }).strict();
 const openActionSchema = z.object({ ...actionBase, kind: z.literal("open"), url: safeUrl }).strict();
@@ -111,6 +122,12 @@ export function validatePage(input: unknown): JuanPageDocument {
       if (fieldKeys.has(field.key)) throw new DocumentValidationError("This JuanPage is invalid.", `Object "${object.id}" has duplicate field key "${field.key}".`);
       fieldKeys.add(field.key);
     }
+    if ((object.actionIds?.length || object.url) && object.interaction !== "inspect") {
+      throw new DocumentValidationError(
+        "This JuanPage is invalid.",
+        `Object "${object.id}" must declare interaction "inspect" before it can expose actions or hidden navigation.`,
+      );
+    }
   }
   const actionIds = new Set<string>();
   for (const action of page.actions ?? []) {
@@ -118,6 +135,9 @@ export function validatePage(input: unknown): JuanPageDocument {
     actionIds.add(action.id);
     if ("target" in action && action.target && action.target !== "page" && !objectIds.has(action.target)) throw new DocumentValidationError("This JuanPage is invalid.", `Action "${action.id}" targets unknown object "${action.target}".`);
     if (action.kind === "copy" && action.source === "field" && (!action.target || !action.field)) throw new DocumentValidationError("This JuanPage is invalid.", `Copy action "${action.id}" needs both target and field when source is "field".`);
+    if (action.kind === "number" && action.control === "range" && (action.min === undefined || action.max === undefined)) {
+      throw new DocumentValidationError("This JuanPage is invalid.", `Range action "${action.id}" needs both min and max.`);
+    }
   }
   for (const object of page.objects) for (const actionId of object.actionIds ?? []) if (!actionIds.has(actionId)) throw new DocumentValidationError("This JuanPage is invalid.", `Object "${object.id}" references unknown action "${actionId}".`);
   for (const relation of page.relations ?? []) if (!objectIds.has(relation.from) || !objectIds.has(relation.to)) throw new DocumentValidationError("This JuanPage is invalid.", `Relation "${relation.from}" -> "${relation.to}" references an unknown object.`);
