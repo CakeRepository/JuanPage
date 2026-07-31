@@ -4,6 +4,7 @@ export type FragmentParams = {
   version?: string;
   data?: string;
   encoding?: PayloadEncoding;
+  receipt?: string;
 };
 
 function parseEncoding(value: string | null): PayloadEncoding | undefined {
@@ -19,18 +20,31 @@ export function parseFragment(hash: string): FragmentParams {
   const data = params.get("data") ?? undefined;
   const version = params.get("v") ?? undefined;
   const encoding = parseEncoding(params.get("enc"));
+  const receipt = params.get("r") ?? undefined;
 
-  // Also support a bare data=value form that URLSearchParams already handles.
-  if (data || version) {
-    return { data: data || undefined, version: version || undefined, encoding };
+  if (data || version || receipt) {
+    return {
+      data: data || undefined,
+      version: version || undefined,
+      encoding,
+      receipt: receipt || undefined,
+    };
   }
 
-  // Fallback: #ENCODED without key (not preferred, but avoid blank page if present)
   if (!raw.includes("=")) {
     return { data: raw };
   }
 
   return {};
+}
+
+export function withReceiptOverlay(hash: string, receipt?: string): string {
+  const raw = hash.startsWith("#") ? hash.slice(1) : hash;
+  const params = new URLSearchParams(raw);
+  if (receipt) params.set("r", receipt);
+  else params.delete("r");
+  const next = params.toString();
+  return next ? `#${next}` : "";
 }
 
 export function clearFragment(): void {
@@ -47,7 +61,6 @@ export function getAppBasePath(): string {
 
   if (configured) return configured.endsWith("/") ? configured : `${configured}/`;
 
-  // Vite injects import.meta.env.BASE_URL
   const viteBase = import.meta.env.BASE_URL || "/";
   return viteBase.endsWith("/") ? viteBase : `${viteBase}/`;
 }
