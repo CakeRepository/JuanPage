@@ -1,0 +1,23 @@
+[
+  1,
+  "pkt:conformance:trust",
+  1,
+  "vocab:en",
+  [
+    ["txt:title", "Trust conformance"],
+    ["type:task", "Task"],
+    ["txt:task", "Deploy release"],
+    ["txt:approve", "Deploy"],
+    ["txt:denied", "Delete production"],
+    ["txt:approval", "Deployment requires human approval"],
+    ["txt:no-delete", "Production deletion is denied"]
+  ],
+  [
+    [0, [0, "txt:title"], null, null, 2, 0, 0, 0],
+    [1, "e:release", "type:task", [0, "txt:task"], null, null, 1, null, ["a:deploy", "a:delete"], []],
+    [4, "a:deploy", 6, [0, "txt:approve"], "e:release", null, ["e:release"], 2, null, "op:deploy"],
+    [4, "a:delete", 6, [0, "txt:denied"], "e:release", null, ["e:release"], 4, null, "op:delete"],
+    [8, "a:deploy", 2, [0, "txt:approval"]],
+    [8, "a:delete", 1, [0, "txt:no-delete"]]
+  ]
+]
