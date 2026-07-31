@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 
 const UNIVERSAL_SURFACES = [
   "src/app.ts",
@@ -19,14 +19,57 @@ const UNIVERSAL_SURFACES = [
   "tests/adapters.test.ts",
 ] as const;
 
+const RETIRED_PATHS = [
+  "src/components/registry.ts",
+  "src/schema/document.ts",
+  "src/schema/moment.ts",
+  "src/schema/anyDocument.ts",
+  "src/sources/DocumentSource.ts",
+  "src/sources/FragmentDocumentSource.ts",
+  "src/state/localState.ts",
+  "src/protocol/receipt.ts",
+  "src/dialect/juan.ts",
+  "src/encoding/compact.ts",
+  "src/encoding/compactMoment.ts",
+  "src/encoding/pipeline.ts",
+  "src/rendering/collect.ts",
+  "src/rendering/collectMoment.ts",
+  "src/rendering/renderMoment.ts",
+  "src/rendering/renderMomentWithReturn.ts",
+  "src/rendering/renderWelcome.ts",
+  "src/examples/grocery-plan.ts",
+  "src/examples/grocery-checkout.ts",
+  "src/styles.css",
+  "src/welcome.css",
+  "src/return.css",
+  "examples/grocery-plan.json",
+  "examples/grocery-checkout.json",
+  "tests/schema.test.ts",
+  "tests/encoding.test.ts",
+  "tests/render.test.ts",
+  "tests/state.test.ts",
+  "tests/moment.test.ts",
+  "tests/momentEncoding.test.ts",
+  "tests/renderMoment.test.ts",
+  "tests/dialect.test.ts",
+  "tests/receipt.test.ts",
+  "tests/livingLink.test.ts",
+  "tests/renderWelcome.test.ts",
+  "docs/ROUNDTRIP.md",
+  "docs/LIVING_LINKS.md",
+] as const;
+
 const FORBIDDEN_IMPORTS = [
   "/schema/document",
   "/schema/moment",
   "/schema/anyDocument",
   "/rendering/renderMoment",
+  "/rendering/renderWelcome",
   "/encoding/pipeline",
   "/encoding/momentPipeline",
   "/dialect/juan",
+  "/protocol/receipt",
+  "/state/localState",
   "/sources/",
 ] as const;
 
@@ -58,7 +101,23 @@ const REQUIRED_IMPORTS: Record<string, readonly string[]> = {
   "tests/adapters.test.ts": ["/adapters", "/protocol/meaning"],
 };
 
+function errorCode(error: unknown): string | undefined {
+  return typeof error === "object" && error !== null && "code" in error
+    ? String((error as { code?: unknown }).code)
+    : undefined;
+}
+
 const failures: string[] = [];
+
+for (const path of RETIRED_PATHS) {
+  try {
+    await access(path);
+    failures.push(`retired parallel runtime file still exists: ${path}`);
+  } catch (error) {
+    if (errorCode(error) !== "ENOENT") throw error;
+  }
+}
+
 for (const path of UNIVERSAL_SURFACES) {
   const source = await readFile(path, "utf8");
   for (const forbidden of FORBIDDEN_IMPORTS) {
@@ -69,6 +128,23 @@ for (const path of UNIVERSAL_SURFACES) {
   }
   for (const required of REQUIRED_IMPORTS[path] ?? []) {
     if (!source.includes(required)) failures.push(`${path} must depend on the universal runtime path: ${required}`);
+  }
+}
+
+const sharedRenderContract = await readFile("src/rendering/render.ts", "utf8");
+if (!sharedRenderContract.includes("applyTheme") || !sharedRenderContract.includes("RenderHandle")) {
+  failures.push("The shared render contract must expose only the trusted theme helper and render handle type.");
+}
+for (const retiredSymbol of ["renderDocument", "JuanPagerDocument", "ProductComponent", "localState", "collectProducts"] as const) {
+  if (sharedRenderContract.includes(retiredSymbol)) failures.push(`The shared render contract contains retired renderer behavior: ${retiredSymbol}`);
+}
+
+const indexHtml = await readFile("index.html", "utf8");
+const builderHtml = await readFile("builder.html", "utf8");
+for (const [path, source] of [["index.html", indexHtml], ["builder.html", builderHtml]] as const) {
+  if (!source.includes('/src/universal.css')) failures.push(`${path} must load the canonical adaptive runtime stylesheet.`);
+  if (source.includes('/src/styles.css') || source.includes('/src/welcome.css') || source.includes('/src/return.css')) {
+    failures.push(`${path} loads a retired visual system.`);
   }
 }
 
@@ -101,9 +177,9 @@ if (renderer.includes("jp-u-lenses") || renderer.includes("setLens(")) {
 }
 
 if (failures.length > 0) {
-  console.error("JuanPager must expose exactly one semantic schema and one adaptive runtime.\n");
+  console.error("JuanPager must expose exactly one semantic schema, one adaptive renderer, and one visual system.\n");
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
 
-console.log("One-schema invariant verified: M1 compiles into JuanPage 2.0, information is inert without bindings, and human facts, scopes, selections, and operations produce typed deltas and receipts.");
+console.log("One-schema invariant verified: retired schema, renderer behavior, source adapters, and visual-system files are absent; M1 compiles into JuanPage 2.0; renderPage is the only renderer; information is inert without bindings; and human facts, scopes, selections, and operations produce typed deltas and receipts.");

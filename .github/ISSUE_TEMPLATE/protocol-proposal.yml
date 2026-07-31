@@ -1,38 +1,61 @@
 name: Protocol proposal
-description: Propose a wire, trust, adapter, or conformance change
+description: Propose a semantic transport, trust, interaction, adapter, or conformance change
 title: "[Protocol]: "
 labels: [protocol]
 body:
   - type: textarea
     id: problem
     attributes:
-      label: Interoperability problem
-      description: Describe the concrete external-developer problem and current executable evidence.
+      label: Concrete interoperability or interaction problem
+      description: Describe the external-developer or human-agent problem and the current executable evidence.
+    validations:
+      required: true
+  - type: textarea
+    id: assumption
+    attributes:
+      label: Limiting assumption
+      description: Name the current schema, protocol, trust, renderer, or transport assumption that prevents the better result.
     validations:
       required: true
   - type: textarea
     id: boundary
     attributes:
-      label: Architecture boundary
-      description: Explain how M1 remains transport, JuanPage 1.0 remains the only UI schema, and renderPage remains the only renderer.
+      label: Canonical architecture after the change
+      description: Explain how the repository will retain one coherent semantic transport, one public interaction schema, one renderer, typed human deltas, and no parallel compatibility system.
     validations:
       required: true
   - type: textarea
     id: wire
     attributes:
-      label: Proposed wire change and fixtures
+      label: Proposed contract and executable fixtures
+      description: Include tuple, schema, state, capability, or adapter changes plus deterministic fixtures.
     validations:
       required: true
   - type: dropdown
     id: compatibility
     attributes:
       label: Compatibility impact
-      options: [Patch-compatible, Minor-compatible, Major-breaking, Unknown]
+      options: [Compatible, Intentional incubation break, Stable-contract major break, Unknown]
+    validations:
+      required: true
+  - type: textarea
+    id: interaction
+    attributes:
+      label: Human interaction and accessibility impact
+      description: Explain visible state truth, keyboard behavior, assistive semantics, and how every affordance maps to a real typed effect.
     validations:
       required: true
   - type: textarea
     id: security
     attributes:
       label: Security and fail-closed behavior
+      description: Cover identity, authority, capability, key lifecycle, replay, revision, idempotency, and hostile-input behavior as applicable.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Conformance and performance evidence
+      description: Name the tests, independent consumer path, benchmark budget, or external implementation that will prove the change.
     validations:
       required: true

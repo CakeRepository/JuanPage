@@ -1,38 +1,56 @@
 # JuanPager release
 
-## Status
+## Identity
 
 - Package version:
 - Git tag:
+- JuanPage version:
+- M1 version:
+- Envelope version:
 - npm publication:
 - Provenance attestation:
 
-## Protocol changes
+## Protocol and interaction changes
 
-Describe M1, envelope, delta, receipt, JuanPage, renderer, or adapter changes. State the wire-version and semver impact.
+Describe M1, envelope, delta, receipt, JuanPage, renderer, trust, or adapter changes. State the wire-version, URL-format, package-version, and migration impact.
+
+Confirm that JuanPage 2.0 is the only public UI schema, M1 is semantic transport rather than a component tree, and `renderPage` is the only renderer.
 
 ## Security
 
-Describe fixed threats, new trust assumptions, key or nonce migration, and any intentionally rejected previously accepted inputs.
+Describe fixed threats, new trust assumptions, key lifecycle changes, nonce-store migration, envelope-lifetime policy, and any intentionally rejected previously accepted inputs.
 
 ## Compatibility and migration
 
-Link migration notes. Confirm that JuanPage 1.0 remains the only public UI schema and `renderPage` remains the only renderer.
+Link migration notes. Identify removed packet, page, URL, package, or adapter contracts. State whether persisted sessions remain readable.
 
 ## Evidence
 
 - [ ] Production dependency audit
-- [ ] Architecture invariant
+- [ ] Release tag/version identity
+- [ ] One-schema/one-runtime architecture invariant
 - [ ] Lint
 - [ ] Unit tests
 - [ ] Integration tests
-- [ ] Conformance tests
-- [ ] Application build
-- [ ] SDK build
+- [ ] Conformance and deterministic fuzz tests
+- [ ] Desktop and mobile browser journeys
+- [ ] Application and SDK build
 - [ ] Public API check
+- [ ] Clean-room packed SDK consumer
 - [ ] npm package dry run
-- [ ] Benchmark smoke test
+- [ ] Benchmark performance budget
+- [ ] CycloneDX SBOM
+- [ ] SHA-256 release checksums
+- [ ] npm provenance
+
+## Attached artifacts
+
+- Package tarball
+- `sbom.cdx.json`
+- `checksums.txt`
+- `benchmark/results/latest.json`
+- `benchmark/results/latest.md`
 
 ## Known limitations
 
-List limitations honestly, including ecosystem adoption or external conformance work not controlled by this repository.
+List limitations honestly, including independent adoption, external certification, assistive-technology coverage, multi-region replay consensus, confidentiality, and executor honesty where those remain outside repository proof.

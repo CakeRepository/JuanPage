@@ -1,6 +1,6 @@
 {
   "name": "juanpager",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Machine-native meaning transport and one trusted adaptive human interface runtime",
   "type": "module",
   "license": "MIT",
@@ -8,18 +8,55 @@
   "main": "./dist-sdk/index.js",
   "types": "./dist-sdk/index.d.ts",
   "exports": {
-    ".": { "types": "./dist-sdk/index.d.ts", "import": "./dist-sdk/index.js" },
-    "./browser": { "types": "./dist-sdk/index.d.ts", "import": "./dist-sdk/index.js" },
-    "./node": { "types": "./dist-sdk/index.d.ts", "import": "./dist-sdk/index.js" },
-    "./protocol": { "types": "./dist-sdk/protocol/meaning.d.ts", "import": "./dist-sdk/protocol/meaning.js" },
-    "./envelope": { "types": "./dist-sdk/protocol/envelope.d.ts", "import": "./dist-sdk/protocol/envelope.js" },
-    "./transport": { "types": "./dist-sdk/transport/adapters.d.ts", "import": "./dist-sdk/transport/adapters.js" },
-    "./adapters": { "types": "./dist-sdk/adapters/index.d.ts", "import": "./dist-sdk/adapters/index.js" },
-    "./adapters/agui": { "types": "./dist-sdk/adapters/agui.d.ts", "import": "./dist-sdk/adapters/agui.js" },
-    "./adapters/mcp-app": { "types": "./dist-sdk/adapters/mcp-app.d.ts", "import": "./dist-sdk/adapters/mcp-app.js" }
+    ".": {
+      "types": "./dist-sdk/index.d.ts",
+      "import": "./dist-sdk/index.js"
+    },
+    "./browser": {
+      "types": "./dist-sdk/index.d.ts",
+      "import": "./dist-sdk/index.js"
+    },
+    "./node": {
+      "types": "./dist-sdk/node.d.ts",
+      "import": "./dist-sdk/node.js"
+    },
+    "./protocol": {
+      "types": "./dist-sdk/protocol/meaning.d.ts",
+      "import": "./dist-sdk/protocol/meaning.js"
+    },
+    "./envelope": {
+      "types": "./dist-sdk/protocol/envelope.d.ts",
+      "import": "./dist-sdk/protocol/envelope.js"
+    },
+    "./transport": {
+      "types": "./dist-sdk/transport/adapters.d.ts",
+      "import": "./dist-sdk/transport/adapters.js"
+    },
+    "./adapters": {
+      "types": "./dist-sdk/adapters/index.d.ts",
+      "import": "./dist-sdk/adapters/index.js"
+    },
+    "./adapters/agui": {
+      "types": "./dist-sdk/adapters/agui.d.ts",
+      "import": "./dist-sdk/adapters/agui.js"
+    },
+    "./adapters/mcp-app": {
+      "types": "./dist-sdk/adapters/mcp-app.d.ts",
+      "import": "./dist-sdk/adapters/mcp-app.js"
+    }
   },
-  "files": ["dist-sdk", "spec", "README.md", "CHANGELOG.md", "SECURITY.md", "LICENSE"],
-  "publishConfig": { "access": "public", "provenance": true },
+  "files": [
+    "dist-sdk",
+    "spec",
+    "README.md",
+    "CHANGELOG.md",
+    "SECURITY.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build && npm run build:sdk",
@@ -29,30 +66,38 @@
     "test:unit": "vitest run tests --exclude tests/integration/** --exclude tests/conformance/**",
     "test:integration": "vitest run tests/integration",
     "test:conformance": "vitest run tests/conformance tests/envelope.test.ts",
+    "test:consumer": "tsx scripts/verify-packed-sdk.ts",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "lint": "eslint . --ext .ts,.js",
+    "lint": "eslint .",
     "check:one-runtime": "tsx scripts/enforce-one-runtime.ts",
     "check:public-api": "tsx scripts/check-public-api.ts",
+    "check:release-version": "tsx scripts/check-release-version.ts",
     "benchmark:m1": "tsx scripts/benchmark-m1.ts",
     "benchmark:smoke": "tsx scripts/benchmark-m1.ts --smoke",
+    "benchmark:budget": "npm run benchmark:smoke && tsx scripts/check-benchmark-budget.ts",
     "package:dry-run": "npm pack --dry-run --json",
     "package:size": "npm pack --dry-run --json",
-    "release:dry-run": "npm run build && npm run check:public-api && npm run package:dry-run",
+    "sbom": "npm sbom --sbom-format cyclonedx",
+    "release:dry-run": "npm audit --audit-level=high && npm run check:release-version && npm run build && npm run check:public-api && npm run test:consumer && npm run benchmark:budget && npm run package:dry-run",
     "encode": "tsx scripts/encode.ts",
     "decode": "tsx scripts/decode.ts",
     "prepack": "npm run build:sdk && npm test"
   },
-  "dependencies": { "fflate": "^0.8.2", "zod": "^3.24.2" },
+  "dependencies": {
+    "fflate": "^0.8.2",
+    "zod": "^3.24.2"
+  },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.51.0",
     "@types/node": "^22.13.10",
-    "@typescript-eslint/eslint-plugin": "^8.26.1",
-    "@typescript-eslint/parser": "^8.26.1",
-    "eslint": "^8.57.1",
+    "eslint": "^10.8.0",
+    "globals": "^17.8.0",
     "jsdom": "^26.0.0",
     "tsx": "^4.19.3",
     "typescript": "^5.8.2",
+    "typescript-eslint": "^8.65.0",
     "vite": "^6.2.2",
     "vitest": "^3.0.9"
   }

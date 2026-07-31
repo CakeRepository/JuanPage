@@ -75,7 +75,7 @@ if (mount) {
     try {
       raw = JSON.parse(editor.value);
     } catch (error) {
-      throw new Error(`Invalid JSON: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(`Invalid JSON: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
     }
     if (Array.isArray(raw) && raw[0] === 1) {
       const packet = validateMeaningPacket(raw);

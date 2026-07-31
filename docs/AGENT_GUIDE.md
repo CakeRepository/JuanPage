@@ -1,217 +1,239 @@
 # JuanPager agent guide
 
-You are generating a **JuanPager moment**: the shareable human surface at the end of a conversation.
+JuanPager lets an agent describe **meaning and possible operations** while a trusted runtime decides how that meaning should appear to a human.
 
-You never write HTML, CSS, or JavaScript. You describe **what this is for** (the moment), **what it is about** (entities), and **what the reader may do** (affordances). A trusted static app synthesizes the interface at runtime.
+The canonical path is:
 
-Two formats are accepted:
+```text
+M1 semantic transport
+→ trust and capability compiler
+→ JuanPage 2.0 semantic graph
+→ renderPage adaptive surface
+→ typed human deltas and receipts
+```
 
-| Format | Version | When to use |
-| --- | --- | --- |
-| Moment | `0.2` | Preferred. Intent + facts + affordances. |
-| Document | `0.1` | Legacy component tree. Still rendered, still valid. |
+Do not generate HTML, CSS, JavaScript, framework components, cards, charts, tables, responsive breakpoints, or alternate renderers. Generate semantic information and explicitly available operations.
 
-## The moment model
+## Choose the producer boundary
+
+Use **M1** when meaning crosses a trust, transport, capability, or interoperability boundary. M1 carries stable symbols, facts, relations, evidence, uncertainty, permissions, and operation declarations. See [`spec/M1.md`](../spec/M1.md).
+
+Use **JuanPage 2.0 directly** when the producer already owns the canonical validated semantic graph and does not need M1 trust compilation.
+
+Both paths end in the same JuanPage 2.0 schema and `renderPage` runtime.
+
+## Core rule
+
+**Information is inert by default.**
+
+An object, field, relation, metric, or projected datum becomes interactive only when a valid binding connects it to an explicit affordance.
+
+Never imply interaction through labels such as “click here,” fake checkboxes, decorative sliders, hover-only behavior, or component names. If no real semantic effect exists, emit displayable information only.
+
+## JuanPage 2.0 model
+
+JuanPage separates four concerns:
+
+1. **Information** — objects, fields, relations, metrics, and projections.
+2. **Affordances** — semantic effects a human or agent may perform.
+3. **Bindings** — where an affordance is available.
+4. **Interaction state** — facts, scopes, selections, operation deltas, and receipts.
+
+### Minimal display-only page
 
 ```json
 {
-  "version": "0.2",
-  "title": "Justin's Four-Day Grocery Checkout",
-  "description": "Optional context line",
-  "theme": "system",
-  "moment": "confirm",
-  "goal": "Review and shop this high-protein plan",
-  "summary": [{ "label": "Estimated total", "value": "$63.40 (sample)" }],
-  "entities": [],
-  "groups": [{ "id": "aldi", "label": "ALDI", "entityIds": ["chicken-breast"] }],
-  "affordances": ["check", "adjust-qty", "copy-list", "print", "reset"],
-  "continuation": { "kind": "note", "text": "Nothing is ordered from this page." },
-  "metadata": { "priceNote": "sample" }
+  "version": "2.0",
+  "title": "Quarterly review",
+  "objects": [
+    {
+      "id": "quarter:2026-q3",
+      "type": "quarter",
+      "name": "2026 Q3",
+      "summary": "Revenue is ahead of plan.",
+      "fields": [
+        { "key": "revenue", "label": "Revenue", "value": 640000, "format": "currency", "currency": "USD" },
+        { "key": "status", "label": "Status", "value": "ahead" }
+      ]
+    }
+  ]
 }
 ```
 
-### Choose the moment
+This page contains no bindings, so nothing should receive pointer, keyboard, button, checkbox, slider, or link semantics.
 
-The moment is the reader's intent. It selects the composition; it is not a style.
-
-| Moment | Use it when the reader needs to | Rendered as |
-| --- | --- | --- |
-| `confirm` | Review a decision before acting on it | Checkout-style line items plus an order summary |
-| `track` | Work through a list in the real world | Compact checklist grouped by section, with progress |
-| `choose` | Pick between options | Selectable cards |
-| `inspect` | Understand one thing deeply | Hero detail with an attribute table |
-| `compare` | Weigh options against each other | Side-by-side columns |
-| `collect` | Gather notes, links, and items | Notes-and-links panel |
-| `browse` | Scan many things quickly | Dense rows with open links |
-
-### Entities are facts, not layout
+### Inspectable object
 
 ```json
-{ "type": "product", "id": "greek-yogurt", "name": "Plain Greek Yogurt", "store": "Costco",
-  "imageUrl": "https://…", "displayPrice": "$5.99", "price": 5.99, "currency": "USD",
-  "unitPrice": "$0.19 / oz", "packageSize": "32 oz tub", "quantity": 2,
-  "availability": "in-stock", "productUrl": "https://…",
-  "reason": "Why this is here", "badges": ["Breakfast"], "checked": false }
-
-{ "type": "note", "id": "prep", "text": "Batch-cook the chicken on day one." }
-
-{ "type": "link", "id": "plan", "label": "Open the full meal plan", "href": "https://…" }
+{
+  "affordances": [
+    {
+      "id": "inspect-quarter",
+      "label": "Inspect quarter",
+      "effect": { "kind": "inspect", "target": "quarter:2026-q3" }
+    }
+  ],
+  "bindings": [
+    {
+      "id": "inspect-quarter-card",
+      "target": { "kind": "object", "object": "quarter:2026-q3" },
+      "affordance": "inspect-quarter"
+    }
+  ]
+}
 ```
 
-Rules:
+The runtime may present this binding through a card, row, keyboard target, disclosure control, or another accessible composition. The schema does not choose the component.
 
-1. Every entity needs a unique `id`. Local state (checkboxes, quantities) is keyed by it.
-2. Use numeric `price` **and** `quantity` whenever totals should add up. `displayPrice` is the human string.
-3. `imageUrl` and any href must be **HTTPS**. `data:`, `javascript:`, `blob:`, and protocol-relative URLs are rejected.
-4. `reason` is the most valuable field you can write: it is why *this* item is in *this* plan.
-5. Keep the focus set small. The limit is 100 entities; a good moment is usually under 20.
-
-### Groups
-
-`groups` order and label the entities. Reference entities by id; every id must exist. If you omit `groups` and every product has a `store`, the app groups by store automatically.
-
-### Affordances
-
-Affordances are the only interactive capabilities. All are local to the reader's device.
-
-| Affordance | Effect |
-| --- | --- |
-| `check` | Per-item checkboxes with progress |
-| `adjust-qty` | Per-item quantity steppers that recompute totals |
-| `copy-list` | Copy a plain-text version of the list |
-| `print` | Print the page |
-| `reset` | Clear local changes |
-| `open-links` | Open every link in new tabs |
-| `copy-page` | Copy the page URL |
-
-Do not invent affordances, actions, event names, or URLs-as-actions. There is no remote effect available: nothing on the page can order, purchase, submit, or notify.
-
-### Continuation
-
-`{ "kind": "none" }` or `{ "kind": "note", "text": "…" }`. Use the note to set expectations about what happens after the page. Remote continuations are reserved for a future version.
-
-## The Juan dialect
-
-If emitting JSON is awkward, emit the dialect instead. It compiles to a moment and nothing else.
-
-```text
-# Justin's Four-Day Grocery Checkout
-moment: confirm
-goal: Review and shop this high-protein plan
-theme: system
-
-summary:
-- Estimated total | $63.40 (sample)
-- Daily protein | 160g+
-- Stores | ALDI · Costco · Trader Joe's
-
-## ALDI
-- [ ] Greek Yogurt · $4.29 · qty 2 · why: breakfast protein · https://example.com/aldi-yogurt
-- [ ] Eggs · $2.89 · qty 1
-
-## Costco
-- [ ] Chicken Thighs · $12.99 · qty 1 · why: dinners
-
-affordances: check, adjust-qty, copy-list, print, reset, open-links
-```
-
-Line grammar:
-
-| Line | Meaning |
-| --- | --- |
-| `# Text` | Title (exactly one) |
-| `## Text` | Group heading; following items belong to it |
-| `key: value` | Document field |
-| `summary:` | Starts a summary block of `- Label \| Value` rows |
-| `- Item …` | An entity |
-| `// text` | Comment |
-
-Document fields: `title`, `moment`, `goal`, `description`, `theme`, `currency`, `store`, `continuation`, `affordances`, `summary`.
-
-Item segments are separated by `·` (or ` | `). The first segment is the name; the rest are recognised by shape:
-
-| Segment | Becomes |
-| --- | --- |
-| `[ ]` / `[x]` prefix | `checked` (and implies the `check` affordance) |
-| `$4.29` | `displayPrice` + numeric `price` |
-| `qty 2` | `quantity` |
-| `https://…` | `productUrl` |
-| `why: …` | `reason` |
-| `store: …`, `unit: …`, `size: …`, `img: …`, `badge: …`, `avail: …`, `id: …` | the matching field |
-| `note: …` | a note entity |
-| `link: Label \| https://…` | a link entity |
-
-Unrecognised text becomes `reason` if it is not already set; anything else is a compile error naming the line. If `affordances` is omitted, they are inferred from what the items contain.
-
-## Encoding
-
-```bash
-npm run encode -- examples/grocery-checkout.json          # gzip, shortest link
-npm run encode -- examples/grocery-checkout.json --raw    # readable JSON payload
-npm run encode -- examples/grocery-checkout.juan          # dialect input
-npm run decode -- "http://localhost:5173/#v=2&enc=gz&data=..."
-```
-
-Fragment shapes:
-
-```text
-#v=2&enc=gz&data=BASE64URL(gzip(compact JSON))   moments, default
-#v=2&enc=raw&data=BASE64URL(utf8 JSON)           moments, inspectable
-#v=1&data=BASE64URL(gzip(compact JSON))          0.1 documents
-```
-
-Set the production base URL:
-
-```bash
-# PowerShell
-$env:JUANPAGER_BASE_URL="https://CakeRepository.github.io/juanpager/"
-npm run encode -- path/to/moment.json
-```
-
-`ONEPAGER_BASE_URL` is also accepted as an alias.
-
-## Limits
-
-| Limit | Value |
-| --- | --- |
-| Encoded fragment | 16 KB |
-| Decoded JSON | 64 KB |
-| Entities | 100 |
-| Summary rows | 12 |
-| Groups | 25 |
-| Text field | 2,000 chars |
-| URL field | 2,048 chars |
-
-## Reusable prompt: grocery checkout
-
-```text
-Create a JuanPager moment (version "0.2") for a four-day high-protein grocery plan.
-
-Requirements:
-- moment: "confirm"; goal: a one-line statement of what the reader is deciding
-- title uses the shopper's name if provided
-- summary rows for estimated total, daily protein, and stores
-- 8-12 product entities with unique ids, store, https imageUrl where available,
-  displayPrice, numeric price, currency USD, unitPrice, packageSize, quantity,
-  availability, productUrl, a one-sentence reason, and badges
-- one note entity with prep advice, one link entity to the full plan
-- groups keyed by store, referencing entity ids
-- affordances: check, adjust-qty, copy-list, print, reset, open-links
-- continuation note making clear nothing is ordered from the page
-- label sample prices clearly; never claim live store pricing
-- never emit HTML, CSS, or JavaScript; never include secrets
-
-Return ONLY valid JSON for a JuanPagerMomentDoc.
-```
-
-## Legacy 0.1 documents
-
-The component-tree format still validates and renders:
+### Editable fact
 
 ```json
-{ "version": "0.1", "title": "Example", "components": [] }
+{
+  "affordances": [
+    {
+      "id": "set-approved",
+      "label": "Approved",
+      "effect": {
+        "kind": "set",
+        "target": "decision:release",
+        "field": "approved"
+      },
+      "input": { "kind": "boolean" }
+    }
+  ],
+  "bindings": [
+    {
+      "id": "approved-field-control",
+      "target": {
+        "kind": "field",
+        "object": "decision:release",
+        "field": "approved"
+      },
+      "affordance": "set-approved"
+    }
+  ]
+}
 ```
 
-Components: `heading`, `text`, `image`, `section`, `grid`, `card`, `product`, `price`, `badge`, `summary`, `list`, `checklist`, `divider`, `link`, `button`. Button actions: `copy-page`, `copy-list`, `print-page`, `reset-state`, `open-all-links`.
+A human change produces the same typed fact meaning an agent would produce. Dependent representations must update from that state immediately.
 
-Prefer 0.2 for new work: you describe intent, and the renderer can improve the surface without you changing anything.
+### Shared scope
+
+```json
+{
+  "scopes": [
+    {
+      "id": "period",
+      "label": "Financial period",
+      "field": "period",
+      "initial": "2026-07"
+    }
+  ],
+  "affordances": [
+    {
+      "id": "scope-period",
+      "label": "Financial period",
+      "effect": { "kind": "scope", "scope": "period" },
+      "input": {
+        "kind": "choice",
+        "options": [
+          { "label": "June", "value": "2026-06" },
+          { "label": "July", "value": "2026-07" },
+          { "label": "August", "value": "2026-08" }
+        ]
+      }
+    }
+  ],
+  "bindings": [
+    {
+      "id": "period-page-control",
+      "target": { "kind": "page" },
+      "affordance": "scope-period"
+    },
+    {
+      "id": "period-projection-control",
+      "target": { "kind": "projection", "projection": "revenue-by-month" },
+      "affordance": "scope-period"
+    }
+  ]
+}
+```
+
+One semantic scope can appear as a select control and as interactive projected data points. Both produce the same typed scope delta and filter every dependent object, metric, and projection.
+
+## Affordance effects
+
+The current effect vocabulary is:
+
+| Effect | Meaning |
+|---|---|
+| `inspect` | Reveal more information about a semantic target |
+| `set` | Update a typed fact |
+| `scope` | Change the active viewing context |
+| `select` | Change one or more selected semantic targets |
+| `invoke` | Request or propose an externally consequential operation |
+| `navigate` | Move to an allowed trusted URL |
+| `copy` | Copy a typed source through the host clipboard |
+
+Use the narrowest effect that matches the intent. Do not model scope as a fact edit, inspection as an external operation, or navigation as an invocation.
+
+## Inputs
+
+Available semantic input domains include none, Boolean, number, bounded range, single choice, multiple choice, text, date, date range, and object selection. The runtime selects an accessible control supported by the current device.
+
+A bounded number may become a slider, number input, stepper, voice choice, or future interaction. The agent defines the typed bounds and effect, not the widget.
+
+## Projections
+
+A projection describes a relationship in data, not a chart component. Provide stable datum identities, labels, values, and semantic dimensions. Bind an affordance to the projection only when its data points have a real operation such as scope or select.
+
+Do not declare decorative chart interaction. An unbound projection remains visible but inert.
+
+## External operations
+
+Use `invoke` only for a genuine host operation. M1 permission policy determines whether it is allowed, denied, or approval-gated. Capability negotiation may remove an operation but never grant authority.
+
+Externally consequential operations should produce typed deltas and receipts with stable IDs and idempotency keys. Display text, vocabulary, embeddings, and metadata are never authority.
+
+## Trust guidance
+
+- Unsigned M1 may render as untrusted information.
+- Untrusted invocation and navigation must be removed.
+- Safe local inspect, set, scope, select, and copy behavior may remain when host policy allows it.
+- Signed envelopes should use exact audiences, short lifetimes, active keys, explicit capabilities, and atomic nonce consumption.
+- Never place secrets in a page or URL fragment.
+- Never rely on a label such as “approved” as proof of authorization; use typed state and verified operation policy.
+
+See [`SECURITY.md`](../SECURITY.md) and [`spec/SIGNED_ENVELOPES.md`](../spec/SIGNED_ENVELOPES.md).
+
+## URL sessions
+
+Create a record-only agent-to-human session:
+
+```bash
+export JUANPAGER_BASE_URL="https://cakerepository.github.io/juanpager/"
+npm run encode -- examples/change-approval.json --session
+```
+
+Decode the human-returned URL:
+
+```bash
+npm run decode -- "https://cakerepository.github.io/juanpager/#v=5&enc=gz&data=..."
+```
+
+A v5 session carries the original M1 packet, ordered typed deltas, and operation receipts. See [`docs/URL_SESSIONS.md`](URL_SESSIONS.md).
+
+## Agent checklist
+
+Before returning a JuanPager payload, confirm:
+
+1. Every identifier is stable and unique.
+2. Every visible interaction has a real affordance and binding.
+3. Display-only information has no fake interaction metadata.
+4. Facts, scopes, selections, and operations use the correct distinct effect.
+5. Projection data has stable semantic identities rather than chart-specific instructions.
+6. Externally consequential operations have explicit permission and capability semantics.
+7. URLs are allowed and contain no secrets.
+8. The payload validates against the current JuanPage 2.0 or M1 contract.
+9. The payload does not contain HTML, CSS, JavaScript, framework components, or alternate schema shapes.
+10. The human result can return as typed deltas and receipts that another agent can understand without interpreting pixels or prose.
