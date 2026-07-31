@@ -46,7 +46,7 @@ describe("M1 meaning protocol", () => {
   });
 
   it("enforces approval and denial before rendering actions", () => {
-    const page = materializeMeaningPacket(trustFixture as MeaningPacket);
+    const page = materializeMeaningPacket(trustFixture as unknown as MeaningPacket);
     const release = page.objects.find((object) => object.id === "e:release");
     expect(release?.actionIds).toEqual(["a:deploy"]);
     expect(page.actions?.find((action) => action.id === "a:deploy")?.kind).toBe("emit");
@@ -69,7 +69,7 @@ describe("M1 meaning protocol", () => {
     expect(delta[4][0][0]).toBe(MeaningMutationOpcode.ProposeAction);
     const receipt = createActionReceipt(delta, "proposed", { queued: true }, ["ev:test"]);
     expect(validateActionReceipt(receipt)[7]).toContain("idem:");
-    expect(applyMeaningDelta(trustFixture as MeaningPacket, delta)[2]).toBe(2);
+    expect(applyMeaningDelta(trustFixture as unknown as MeaningPacket, delta)[2]).toBe(2);
   });
 
   it("rejects denied action invocations", () => {
