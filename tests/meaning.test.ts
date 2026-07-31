@@ -1,12 +1,18 @@
 import { describe, expect, it } from "vitest";
+import trustFixture from "../spec/fixtures/trust.json";
 import { decodePage, encodeMeaningPacket } from "../src/encoding/pagePipeline";
 import { futureMeaningPacket } from "../src/examples/meaning-workspace";
 import {
   applyMeaningDelta,
+  createActionDelta,
+  createActionReceipt,
   createFactDelta,
   LensCapability,
   materializeMeaningPacket,
+  MeaningMutationOpcode,
   MeaningProtocolError,
+  validateActionReceipt,
+  type MeaningPacket,
   type RendererCapabilities,
 } from "../src/protocol/meaning";
 
@@ -37,6 +43,37 @@ describe("M1 meaning protocol", () => {
     const decision = page.objects.find((object) => object.id === "e:decision");
     expect(next[2]).toBe(5);
     expect(decision?.fields?.find((field) => field.key === "prop:approved")?.value).toBe(true);
+  });
+
+  it("enforces approval and denial before rendering actions", () => {
+    const page = materializeMeaningPacket(trustFixture as MeaningPacket);
+    const release = page.objects.find((object) => object.id === "e:release");
+    expect(release?.actionIds).toEqual(["a:deploy"]);
+    expect(page.actions?.find((action) => action.id === "a:deploy")?.kind).toBe("emit");
+    expect(page.actions?.some((action) => action.id === "a:delete")).toBe(false);
+    expect(page.metadata?.["m1.policy.a:deploy"]).toBe("approval");
+    expect(page.metadata?.["m1.policy.a:delete"]).toBe("deny");
+  });
+
+  it("creates replay-safe action proposals and receipts", () => {
+    const delta = createActionDelta(
+      "pkt:conformance:trust",
+      1,
+      "actor:test",
+      "a:deploy",
+      "e:release",
+      { source: "test" },
+      "approval",
+      { timestamp: "2026-07-31T21:00:00.000Z" },
+    );
+    expect(delta[4][0][0]).toBe(MeaningMutationOpcode.ProposeAction);
+    const receipt = createActionReceipt(delta, "proposed", { queued: true }, ["ev:test"]);
+    expect(validateActionReceipt(receipt)[7]).toContain("idem:");
+    expect(applyMeaningDelta(trustFixture as MeaningPacket, delta)[2]).toBe(2);
+  });
+
+  it("rejects denied action invocations", () => {
+    expect(() => createActionDelta("pkt:test", 0, "actor:test", "a:delete", null, {}, "deny")).toThrow(MeaningProtocolError);
   });
 
   it("rejects unresolved vocabulary", () => {
