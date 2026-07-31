@@ -44,10 +44,16 @@ export function respondToMcpApproval(input: Readonly<{
   timestamp: string;
 }>): McpAppApprovalResponse {
   const policy = input.decision === "proposed" ? "approval" : "allow";
-  const delta = createActionDelta(input.packet[1], input.packet[2], input.actorId, input.actionId, input.targetId, {
-    ...(input.arguments ?? {}),
-    decision: input.decision,
-  }, policy, input.timestamp);
+  const delta = createActionDelta(
+    input.packet[1],
+    input.packet[2],
+    input.actorId,
+    input.actionId,
+    input.targetId,
+    { ...(input.arguments ?? {}), decision: input.decision },
+    policy,
+    { timestamp: input.timestamp },
+  );
   return {
     content: [{ type: "text", text: `JuanPager decision: ${input.decision}` }],
     structuredContent: { protocol: "m1", packetId: input.packet[1], delta, decision: input.decision },
