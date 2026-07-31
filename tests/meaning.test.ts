@@ -7,33 +7,38 @@ import {
   createActionDelta,
   createActionReceipt,
   createFactDelta,
-  LensCapability,
+  createScopeDelta,
+  createSelectionDelta,
+  interactionStateFromMeaningDeltas,
   materializeMeaningPacket,
   MeaningMutationOpcode,
   MeaningProtocolError,
   validateActionReceipt,
   type MeaningPacket,
-  type RendererCapabilities,
 } from "../src/protocol/meaning";
 
 describe("M1 meaning protocol", () => {
-  it("projects symbols into the existing JuanPage runtime", () => {
+  it("projects symbols into JuanPage 2 semantic affordances", () => {
     const page = materializeMeaningPacket(futureMeaningPacket);
+    expect(page.version).toBe("2.0");
     expect(page.title).toBe("Meaning is the Interface");
     expect(page.metadata?.["m1.packetId"]).toBe("pkt:juan:future");
     expect(page.objects.some((object) => object.id === "e:decision")).toBe(true);
     expect(page.objects.some((object) => object.type === "signal")).toBe(true);
+    expect(page.affordances?.length).toBeGreaterThan(0);
+    expect(page.bindings?.length).toBeGreaterThan(0);
   });
 
-  it("uses the same v3 payload transport", async () => {
+  it("uses the v5 payload transport", async () => {
     const payload = await encodeMeaningPacket(futureMeaningPacket);
     const page = await decodePage(payload, "gz");
+    expect(page.version).toBe("2.0");
     expect(page.metadata?.["m1.revision"]).toBe(4);
   });
 
-  it("negotiates a supported lens", () => {
-    const tableOnly: RendererCapabilities = [1, "en-US", 3, LensCapability.Table, ["*"], 1440, 900, 0];
-    expect(materializeMeaningPacket(futureMeaningPacket, tableOnly).view?.defaultLens).toBe("table");
+  it("does not let the packet choose a component lens", () => {
+    const page = materializeMeaningPacket(futureMeaningPacket);
+    expect("view" in page).toBe(false);
   });
 
   it("applies a typed fact delta without language parsing", () => {
@@ -45,24 +50,35 @@ describe("M1 meaning protocol", () => {
     expect(decision?.fields?.find((field) => field.key === "prop:approved")?.value).toBe(true);
   });
 
-  it("enforces approval and denial before rendering actions", () => {
+  it("enforces approval and denial before compiling affordances", () => {
     const page = materializeMeaningPacket(trustFixture as unknown as MeaningPacket);
-    const release = page.objects.find((object) => object.id === "e:release");
-    expect(release?.actionIds).toEqual(["a:deploy"]);
-    expect(page.actions?.find((action) => action.id === "a:deploy")?.kind).toBe("emit");
-    expect(page.actions?.some((action) => action.id === "a:delete")).toBe(false);
+    const deploy = page.affordances?.find((affordance) => affordance.id === "a:deploy");
+    expect(deploy?.effect).toMatchObject({ kind: "invoke", policy: "approval" });
+    expect(page.bindings?.some((binding) => binding.affordance === "a:deploy")).toBe(true);
+    expect(page.affordances?.some((affordance) => affordance.id === "a:delete")).toBe(false);
     expect(page.metadata?.["m1.policy.a:deploy"]).toBe("approval");
     expect(page.metadata?.["m1.policy.a:delete"]).toBe("deny");
   });
 
-  it("creates replay-safe action proposals and receipts", () => {
+  it("creates scope and selection deltas as distinct human meaning", () => {
+    const scope = createScopeDelta("pkt:test", 0, "period", "2026-07");
+    const selection = createSelectionDelta("pkt:test", 1, "tasks", ["task:a", "task:b"]);
+    expect(scope[4][0][0]).toBe(MeaningMutationOpcode.SetScope);
+    expect(selection[4][0][0]).toBe(MeaningMutationOpcode.SetSelection);
+    expect(interactionStateFromMeaningDeltas([scope, selection])).toEqual({
+      scopes: { period: "2026-07" },
+      selections: { tasks: ["task:a", "task:b"] },
+    });
+  });
+
+  it("creates replay-safe operation proposals and receipts", () => {
     const delta = createActionDelta(
       "pkt:conformance:trust",
       1,
       "actor:test",
       "a:deploy",
       "e:release",
-      { source: "test" },
+      { source: "test", "scope.period": "2026-07" },
       "approval",
       { timestamp: "2026-07-31T21:00:00.000Z" },
     );
@@ -72,7 +88,7 @@ describe("M1 meaning protocol", () => {
     expect(applyMeaningDelta(trustFixture as unknown as MeaningPacket, delta)[2]).toBe(2);
   });
 
-  it("rejects denied action invocations", () => {
+  it("rejects denied operation invocations", () => {
     expect(() => createActionDelta("pkt:test", 0, "actor:test", "a:delete", null, {}, "deny")).toThrow(MeaningProtocolError);
   });
 
