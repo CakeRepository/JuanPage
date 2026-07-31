@@ -10,6 +10,7 @@ export type LocalPageState = {
   products: Record<string, LocalProductState>;
   checklist: Record<string, boolean>;
   sections: Record<string, boolean>;
+  responseNote?: string;
 };
 
 function fnv1a(input: string): string {
@@ -45,6 +46,9 @@ export function loadLocalState(key: string): LocalPageState {
       products: parsed.products ?? {},
       checklist: parsed.checklist ?? {},
       sections: parsed.sections ?? {},
+      ...(typeof parsed.responseNote === "string"
+        ? { responseNote: parsed.responseNote }
+        : {}),
     };
   } catch {
     return emptyLocalState();
