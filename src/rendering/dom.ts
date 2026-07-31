@@ -13,10 +13,12 @@ export function el<K extends keyof HTMLElementTagNameMap>(
   if (options?.text !== undefined) node.textContent = options.text;
   if (options?.attrs) {
     for (const [key, value] of Object.entries(options.attrs)) {
-      if (value === undefined || value === null || value === false) continue;
-      if (value === true) {
+      if (value === undefined || value === null) continue;
+      if (typeof value === "boolean" && key.startsWith("aria-")) {
+        node.setAttribute(key, String(value));
+      } else if (value === true) {
         node.setAttribute(key, "");
-      } else {
+      } else if (value !== false) {
         node.setAttribute(key, String(value));
       }
     }
@@ -31,7 +33,7 @@ export function append(parent: Node, ...children: Array<Node | null | undefined>
 }
 
 export function externalLink(href: string, label: string, className?: string): HTMLAnchorElement {
-  const link = el("a", {
+  return el("a", {
     className,
     text: label,
     attrs: {
@@ -40,7 +42,6 @@ export function externalLink(href: string, label: string, className?: string): H
       rel: "noopener noreferrer",
     },
   });
-  return link;
 }
 
 /** Remote images may fail or be blocked; never leave a broken box behind. */
@@ -80,7 +81,6 @@ export function announce(host: HTMLElement, message: string): void {
 }
 
 export function assertNoHtmlApisUsed(root: ParentNode): void {
-  // Runtime guard used by tests — rendering path must not set HTML strings.
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
   let node = walker.currentNode as Element | null;
   while (node) {
