@@ -20,6 +20,15 @@ All notable changes are documented here. Package releases use Semantic Versionin
 - Commit-specific CI evidence bundles containing benchmark reports, SBOM data, and browser failure evidence.
 - Release tarballs, CycloneDX SBOMs, SHA-256 checksums, benchmark evidence, npm provenance configuration, and tag/version identity checks.
 - Security policy, threat model, ADRs, conformance levels, performance budgets, versioning, and contributor documentation.
+- An architecture gate that requires retired schema, renderer, encoding, state, receipt, dialect, example, test, documentation, and visual-system files to remain absent.
+
+### Removed
+
+- The complete JuanPager Document 0.1 component-tree schema, renderer, encoder, local state, examples, styles, and tests.
+- The complete JuanPager Moment 0.2 schema, renderer, dialect, compact encoding, receipt overlay, living-link format, examples, styles, documentation, and tests.
+- The multi-schema loader and encoding pipeline that allowed both retired systems to coexist.
+- Legacy fragment versions 1 through 4 and the `juanreceipt:v1` URL overlay model.
+- The separate welcome, document, moment, and return visual systems. `universal.css` is now the only application and builder stylesheet.
 
 ### Security
 
@@ -32,14 +41,16 @@ All notable changes are documented here. Package releases use Semantic Versionin
 
 - JuanPage 1.x is replaced by JuanPage 2.0.
 - Object-owned `actions`, `actionIds`, object interaction flags, and agent-authored lens configuration are removed from the canonical model.
-- Share fragments v3 and v4 are replaced by v5.
+- JuanPager Document 0.1 and Moment 0.2 are no longer accepted, built, rendered, encoded, documented, or tested.
+- Share fragments v1 through v4 are replaced by v5.
 - Verification now enforces a default maximum envelope lifetime of five minutes unless explicitly widened by verifier policy.
 - A requested direct-key capability must be explicitly present on the verification key when no delegation chain is supplied.
 
 ### Compatibility
 
 - JuanPage 2.0 is the only public UI schema.
-- `renderPage` remains the only renderer.
+- `renderPage` is the only renderer.
+- `universal.css` is the only runtime visual system.
 - M1 remains semantic transport rather than a component tree.
 - Raw unsigned M1 remains available for informational rendering but is not trusted invocation or navigation authority.
 
