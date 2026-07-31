@@ -76,10 +76,14 @@ export class EnvelopeVerificationError extends Error {
 export class MemoryNonceStore implements NonceStore {
   private readonly seen = new Map<string, number>();
 
+  constructor(private readonly now?: () => Date) {}
+
   consume(issuer: string, nonce: string, expiresAt: Date): boolean {
-    const now = Date.now();
-    for (const [key, expiration] of this.seen) if (expiration <= now) this.seen.delete(key);
-    if (expiresAt.getTime() <= now) return false;
+    const current = this.now?.().getTime();
+    if (current !== undefined) {
+      for (const [key, expiration] of this.seen) if (expiration <= current) this.seen.delete(key);
+      if (expiresAt.getTime() <= current) return false;
+    }
     const key = `${issuer}\u0000${nonce}`;
     if (this.seen.has(key)) return false;
     this.seen.set(key, expiresAt.getTime());
