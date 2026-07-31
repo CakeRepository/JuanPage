@@ -3,8 +3,8 @@ import { buildPageShareUrl, encodePage, measurePageSizes, PagePayloadError, type
 import { futureWorkspace } from "./examples/future-workspace.js";
 import { append, el } from "./rendering/dom.js";
 import { renderPage } from "./rendering/renderPage.js";
+import { DocumentValidationError } from "./schema/errors.js";
 import { validatePage, type JuanPageDocument } from "./schema/page.js";
-import { DocumentValidationError } from "./schema/document.js";
 
 const mount = document.getElementById("builder-app");
 if (mount) {
