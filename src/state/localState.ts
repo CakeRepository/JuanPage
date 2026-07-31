@@ -13,6 +13,17 @@ export type LocalPageState = {
   responseNote?: string;
 };
 
+export const LOCAL_STATE_EVENT = "juanpager:local-state";
+
+function emitLocalState(key: string, state: LocalPageState): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent(LOCAL_STATE_EVENT, {
+      detail: { key, state },
+    }),
+  );
+}
+
 function fnv1a(input: string): string {
   let hash = 0x811c9dc5;
   for (let i = 0; i < input.length; i += 1) {
@@ -23,7 +34,6 @@ function fnv1a(input: string): string {
 }
 
 export function documentStateKey(document: JuanPagerDocument): string {
-  // Stable key from the decoded document so different links do not share state.
   const canonical = JSON.stringify(document);
   return `juanpager:v0.1:${fnv1a(canonical)}:${canonical.length}`;
 }
@@ -57,10 +67,12 @@ export function loadLocalState(key: string): LocalPageState {
 
 export function saveLocalState(key: string, state: LocalPageState): void {
   localStorage.setItem(key, JSON.stringify(state));
+  emitLocalState(key, state);
 }
 
 export function resetLocalState(key: string): void {
   localStorage.removeItem(key);
+  emitLocalState(key, emptyLocalState());
 }
 
 export function productKey(product: ProductComponent, index: number): string {
