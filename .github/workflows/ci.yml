@@ -22,6 +22,8 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Production dependency audit
         run: npm audit --omit=dev --audit-level=high
+      - name: Full dependency audit report
+        run: npm audit --audit-level=high || true
       - name: Release identity
         run: npm run check:release-version
       - name: Architecture invariant
