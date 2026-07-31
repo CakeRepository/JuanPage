@@ -41,8 +41,8 @@ export type DecodedPagePayload =
 
 export class PagePayloadError extends Error {
   readonly details: string;
-  constructor(message: string, details: string) {
-    super(message);
+  constructor(message: string, details: string, options?: ErrorOptions) {
+    super(message, options);
     this.name = "PagePayloadError";
     this.details = details;
   }
@@ -90,7 +90,7 @@ async function decodeJson(payload: string, declared?: PagePayloadEncoding): Prom
   try {
     bytes = base64UrlToBytes(payload);
   } catch (error) {
-    throw new Error(`Invalid Base64URL payload: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(`Invalid Base64URL payload: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
   }
   const gzipped = looksGzipped(bytes);
   if (declared === "gz" && !gzipped) throw new Error("The link declares gzip but the payload is not gzip. It may be truncated.");
@@ -99,14 +99,14 @@ async function decodeJson(payload: string, declared?: PagePayloadEncoding): Prom
     try {
       jsonBytes = await gzipDecompress(bytes);
     } catch (error) {
-      throw new Error(`Could not decompress this JuanPage: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(`Could not decompress this JuanPage: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
     }
   }
   assertJsonSize(jsonBytes);
   try {
     return JSON.parse(utf8Text(jsonBytes)) as unknown;
   } catch (error) {
-    throw new Error(`Invalid JSON in JuanPage payload: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(`Invalid JSON in JuanPage payload: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
   }
 }
 
@@ -139,6 +139,7 @@ export function validateMeaningSession(input: unknown): MeaningSession {
       throw new PagePayloadError(
         "This M1 session is invalid.",
         `Delta ${index} does not continue the packet revision chain: ${error instanceof Error ? error.message : String(error)}`,
+        { cause: error },
       );
     }
     return delta;
