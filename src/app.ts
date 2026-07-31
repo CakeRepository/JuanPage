@@ -3,6 +3,7 @@ import { encodeToFragment, PayloadLimitError } from "./encoding/pipeline.js";
 import { groceryCheckout } from "./examples/grocery-checkout.js";
 import { renderDocument, renderError } from "./rendering/render.js";
 import { renderMomentWithReturn } from "./rendering/renderMomentWithReturn.js";
+import { renderWelcome } from "./rendering/renderWelcome.js";
 import type { LoadedDocument } from "./schema/anyDocument.js";
 import { DocumentValidationError } from "./schema/document.js";
 import { FragmentDocumentSource } from "./sources/FragmentDocumentSource.js";
@@ -28,18 +29,9 @@ async function bootstrap(): Promise<void> {
 
   const hash = window.location.hash;
   if (!hash || !hash.includes("data=")) {
-    renderError(mount, {
-      title: "No page loaded",
-      explanation:
-        "Open a JuanPager link with embedded page data, generate one in the builder, or load the grocery checkout demo.",
-      details:
-        "Expected URL fragment format: #v=2&enc=gz&data=ENCODED_PAYLOAD (moments) or #v=1&data=ENCODED_PAYLOAD (0.1 documents)",
+    renderWelcome(mount, {
       onDemo: () => {
         void loadDemo();
-      },
-      onClear: () => {
-        clearFragment();
-        void bootstrap();
       },
       docsHref: docsUrl(),
     });
