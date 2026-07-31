@@ -11,6 +11,7 @@ import {
   LOCAL_STATE_EVENT,
   loadLocalState,
   momentStateKey,
+  resetLocalState,
   saveLocalState,
   type LocalPageState,
 } from "../state/localState.js";
@@ -74,6 +75,17 @@ export function renderMomentWithReturn(
     writeLivingLink(moment, custom.detail.state);
   };
   window.addEventListener(LOCAL_STATE_EVENT, onState);
+
+  const reset = handle.root.querySelector('[data-affordance="reset"]');
+  if (reset instanceof HTMLButtonElement && reset.parentElement) {
+    const replacement = reset.cloneNode(true) as HTMLButtonElement;
+    reset.replaceWith(replacement);
+    replacement.addEventListener("click", () => {
+      window.removeEventListener(LOCAL_STATE_EVENT, onState);
+      resetLocalState(stateKey);
+      renderMomentWithReturn(moment, mount);
+    });
+  }
 
   const panel = el("section", {
     className: "jp-return",
