@@ -1,10 +1,14 @@
 import { readFile } from "node:fs/promises";
 
-const PUBLIC_ENTRYPOINTS = [
+const UNIVERSAL_SURFACES = [
   "src/app.ts",
   "src/builder.ts",
+  "src/rendering/renderPage.ts",
+  "src/state/pageState.ts",
   "scripts/encode.ts",
   "scripts/decode.ts",
+  "tests/page.test.ts",
+  "tests/renderPage.test.ts",
 ] as const;
 
 const FORBIDDEN_IMPORTS = [
@@ -28,13 +32,17 @@ const FORBIDDEN_PUBLIC_VERSIONS = [
 const REQUIRED_IMPORTS: Record<string, readonly string[]> = {
   "src/app.ts": ["/schema/page", "/rendering/renderPage", "/encoding/pagePipeline"],
   "src/builder.ts": ["/schema/page", "/rendering/renderPage", "/encoding/pagePipeline"],
+  "src/rendering/renderPage.ts": ["/schema/page", "/state/pageState"],
+  "src/state/pageState.ts": ["/schema/page"],
   "scripts/encode.ts": ["/schema/page", "/encoding/pagePipeline"],
   "scripts/decode.ts": ["/encoding/pagePipeline"],
+  "tests/page.test.ts": ["/schema/page", "/schema/errors", "/encoding/pagePipeline"],
+  "tests/renderPage.test.ts": ["/rendering/renderPage"],
 };
 
 const failures: string[] = [];
 
-for (const path of PUBLIC_ENTRYPOINTS) {
+for (const path of UNIVERSAL_SURFACES) {
   const source = await readFile(path, "utf8");
 
   for (const forbidden of FORBIDDEN_IMPORTS) {
@@ -62,4 +70,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log("One-schema invariant verified: JuanPage 1.0 + universal runtime only.");
+console.log("One-schema invariant verified across runtime, state, CLI, and tests.");
