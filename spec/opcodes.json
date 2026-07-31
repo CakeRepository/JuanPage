@@ -1,26 +1,41 @@
 {
-  "version": "1.0",
+  "version": "2.0",
   "records": {
     "0": "header",
     "1": "entity",
     "2": "fact",
     "3": "relation",
-    "4": "action",
-    "5": "metric",
+    "4": "affordance",
+    "5": "projection",
     "6": "signal",
     "7": "evidence",
     "8": "permission"
   },
+  "affordanceKinds": {
+    "0": "set_boolean",
+    "1": "set_number",
+    "2": "set_choice",
+    "3": "set_text",
+    "4": "navigate",
+    "5": "copy",
+    "6": "invoke",
+    "7": "scope_choice",
+    "8": "select",
+    "9": "inspect"
+  },
   "mutations": {
     "20": "set_fact",
     "21": "remove_fact",
-    "30": "invoke_action",
-    "31": "propose_action",
-    "32": "approve_action",
-    "33": "reject_action",
-    "34": "cancel_action",
-    "35": "action_result",
-    "36": "action_failed"
+    "22": "set_scope",
+    "23": "clear_scope",
+    "24": "set_selection",
+    "30": "invoke_operation",
+    "31": "propose_operation",
+    "32": "approve_operation",
+    "33": "reject_operation",
+    "34": "cancel_operation",
+    "35": "operation_result",
+    "36": "operation_failed"
   },
   "permissionPolicies": {
     "0": "allow",

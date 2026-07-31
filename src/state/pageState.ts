@@ -1,20 +1,36 @@
-import type { JuanPageDocument, PageLens, PageObject, PageScalar } from "../schema/page.js";
-import { objectField } from "../schema/page.js";
+import {
+  objectField,
+  type JuanPageDocument,
+  type PageBindingTarget,
+  type PageObject,
+  type PageScalar,
+} from "../schema/page.js";
 
 export type PageState = {
   values: Record<string, Record<string, PageScalar>>;
-  lens?: PageLens;
-  selectedId?: string;
+  scopes: Record<string, PageScalar>;
+  selections: Record<string, string[]>;
+  inspection?: PageBindingTarget;
   activeGroup?: string;
 };
 
-export type PageValueMutation = {
-  target: string;
-  field: string;
-  value: PageScalar;
-};
+export type PageInteractionMutation =
+  | Readonly<{ kind: "set"; target: string; field: string; value: PageScalar }>
+  | Readonly<{ kind: "scope"; scope: string; value: PageScalar }>
+  | Readonly<{ kind: "select"; selection: string; values: readonly string[] }>;
 
-const EMPTY_STATE: PageState = { values: {} };
+function initialState(page: JuanPageDocument): PageState {
+  const scopes: Record<string, PageScalar> = {};
+  for (const scope of page.scopes ?? []) if (scope.initial !== undefined) scopes[scope.id] = scope.initial;
+  Object.assign(scopes, page.state?.scopes ?? {});
+  return {
+    values: {},
+    scopes,
+    selections: Object.fromEntries(
+      Object.entries(page.state?.selections ?? {}).map(([name, values]) => [name, [...values]]),
+    ),
+  };
+}
 
 function hashText(text: string): string {
   let hash = 2166136261;
@@ -26,22 +42,26 @@ function hashText(text: string): string {
 }
 
 export function pageStateKey(page: JuanPageDocument): string {
-  return `juanpager:1:${hashText(JSON.stringify(page))}`;
+  return `juanpager:2:${hashText(JSON.stringify(page))}`;
 }
 
-export function loadPageState(key: string): PageState {
+export function loadPageState(key: string, page: JuanPageDocument): PageState {
+  const fallback = initialState(page);
   try {
     const raw = localStorage.getItem(key);
-    if (!raw) return { ...EMPTY_STATE, values: {} };
+    if (!raw) return fallback;
     const parsed = JSON.parse(raw) as Partial<PageState>;
     return {
       values: parsed.values && typeof parsed.values === "object" ? parsed.values : {},
-      lens: parsed.lens,
-      selectedId: parsed.selectedId,
-      activeGroup: parsed.activeGroup,
+      scopes: parsed.scopes && typeof parsed.scopes === "object" ? { ...fallback.scopes, ...parsed.scopes } : fallback.scopes,
+      selections: parsed.selections && typeof parsed.selections === "object"
+        ? Object.fromEntries(Object.entries(parsed.selections).map(([name, values]) => [name, Array.isArray(values) ? values.map(String) : []]))
+        : fallback.selections,
+      inspection: parsed.inspection && typeof parsed.inspection === "object" ? parsed.inspection : undefined,
+      activeGroup: typeof parsed.activeGroup === "string" ? parsed.activeGroup : undefined,
     };
   } catch {
-    return { ...EMPTY_STATE, values: {} };
+    return fallback;
   }
 }
 
@@ -51,6 +71,12 @@ export function savePageState(key: string, state: PageState): void {
 
 export function resetPageState(key: string): void {
   localStorage.removeItem(key);
+}
+
+function emit(mutation: PageInteractionMutation): void {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent<PageInteractionMutation>("juanpager:interaction", { detail: mutation }));
+  }
 }
 
 export function effectiveFieldValue(
@@ -64,16 +90,18 @@ export function effectiveFieldValue(
   return objectField(object, fieldKey)?.value ?? fallback;
 }
 
-export function setPageValue(
-  state: PageState,
-  target: string,
-  field: string,
-  value: PageScalar,
-): void {
+export function setPageValue(state: PageState, target: string, field: string, value: PageScalar): void {
   state.values[target] = { ...state.values[target], [field]: value };
-  if (typeof window !== "undefined") {
-    window.dispatchEvent(new CustomEvent<PageValueMutation>("juanpager:value", {
-      detail: { target, field, value },
-    }));
-  }
+  emit({ kind: "set", target, field, value });
+}
+
+export function setPageScope(state: PageState, scope: string, value: PageScalar): void {
+  if (value === null) delete state.scopes[scope];
+  else state.scopes[scope] = value;
+  emit({ kind: "scope", scope, value });
+}
+
+export function setPageSelection(state: PageState, selection: string, values: readonly string[]): void {
+  state.selections[selection] = [...new Set(values)];
+  emit({ kind: "select", selection, values: state.selections[selection] });
 }

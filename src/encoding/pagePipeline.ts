@@ -5,6 +5,7 @@ import { validatePage, type JuanPageDocument } from "../schema/page.js";
 import {
   applyMeaningDelta,
   browserRendererCapabilities,
+  interactionStateFromMeaningDeltas,
   materializeMeaningPacket,
   validateActionReceipt,
   validateMeaningDelta,
@@ -21,11 +22,6 @@ export const DEFAULT_PAGE_ENCODING: PagePayloadEncoding = "gz";
 
 type MeaningEnvelope = { transport: "m1"; packet: MeaningPacket };
 
-/**
- * A record-only browser exchange. The base packet remains immutable while
- * typed human deltas and action receipts accumulate for the return trip.
- * It is a transport envelope, never a second UI schema.
- */
 export type MeaningSession = Readonly<{
   transport: "m1-session";
   packet: MeaningPacket;
@@ -90,17 +86,14 @@ async function encodeJson(value: unknown, encoding: PagePayloadEncoding): Promis
 async function decodeJson(payload: string, declared?: PagePayloadEncoding): Promise<unknown> {
   if (!payload) throw new PagePayloadError("Missing JuanPage data.", "The URL did not include a data payload.");
   assertEncodedSize(payload);
-
   let bytes: Uint8Array;
   try {
     bytes = base64UrlToBytes(payload);
   } catch (error) {
     throw new Error(`Invalid Base64URL payload: ${error instanceof Error ? error.message : String(error)}`);
   }
-
   const gzipped = looksGzipped(bytes);
   if (declared === "gz" && !gzipped) throw new Error("The link declares gzip but the payload is not gzip. It may be truncated.");
-
   let jsonBytes = bytes;
   if (gzipped) {
     try {
@@ -110,7 +103,6 @@ async function decodeJson(payload: string, declared?: PagePayloadEncoding): Prom
     }
   }
   assertJsonSize(jsonBytes);
-
   try {
     return JSON.parse(utf8Text(jsonBytes)) as unknown;
   } catch (error) {
@@ -129,23 +121,15 @@ function isMeaningSessionEnvelope(input: unknown): input is Record<string, unkno
 }
 
 export function createMeaningSession(packetInput: MeaningPacket): MeaningSession {
-  return {
-    transport: "m1-session",
-    packet: validateMeaningPacket(packetInput),
-    deltas: [],
-    receipts: [],
-  };
+  return { transport: "m1-session", packet: validateMeaningPacket(packetInput), deltas: [], receipts: [] };
 }
 
 export function validateMeaningSession(input: unknown): MeaningSession {
-  if (!isMeaningSessionEnvelope(input)) {
-    throw new PagePayloadError("This M1 session is invalid.", "Expected an m1-session transport envelope.");
-  }
+  if (!isMeaningSessionEnvelope(input)) throw new PagePayloadError("This M1 session is invalid.", "Expected an m1-session transport envelope.");
   const packet = validateMeaningPacket(input.packet);
   if (!Array.isArray(input.deltas) || !Array.isArray(input.receipts)) {
     throw new PagePayloadError("This M1 session is invalid.", "Session deltas and receipts must be arrays.");
   }
-
   let current = packet;
   const deltas = input.deltas.map((candidate, index) => {
     const delta = validateMeaningDelta(candidate);
@@ -159,18 +143,13 @@ export function validateMeaningSession(input: unknown): MeaningSession {
     }
     return delta;
   });
-
   const receipts = input.receipts.map((candidate, index) => {
     const receipt = validateActionReceipt(candidate);
     if (receipt[2] !== packet[1]) {
-      throw new PagePayloadError(
-        "This M1 session is invalid.",
-        `Receipt ${index} belongs to packet ${receipt[2]}, not ${packet[1]}.`,
-      );
+      throw new PagePayloadError("This M1 session is invalid.", `Receipt ${index} belongs to packet ${receipt[2]}, not ${packet[1]}.`);
     }
     return receipt;
   });
-
   return { transport: "m1-session", packet, deltas, receipts };
 }
 
@@ -179,31 +158,18 @@ export function replayMeaningSession(input: unknown): MeaningPacket {
   return session.deltas.reduce<MeaningPacket>((packet, delta) => applyMeaningDelta(packet, delta), session.packet);
 }
 
-export function appendMeaningSessionDelta(
-  sessionInput: unknown,
-  deltaInput: unknown,
-  receiptInput?: unknown,
-): MeaningSession {
+export function appendMeaningSessionDelta(sessionInput: unknown, deltaInput: unknown, receiptInput?: unknown): MeaningSession {
   const session = validateMeaningSession(sessionInput);
   const current = replayMeaningSession(session);
   const delta = validateMeaningDelta(deltaInput);
   applyMeaningDelta(current, delta);
-
   const receipts = [...session.receipts];
   if (receiptInput !== undefined) {
     const receipt = validateActionReceipt(receiptInput);
-    if (receipt[2] !== session.packet[1]) {
-      throw new PagePayloadError("This M1 receipt is invalid.", "The receipt packet id does not match the session packet.");
-    }
+    if (receipt[2] !== session.packet[1]) throw new PagePayloadError("This M1 receipt is invalid.", "The receipt packet id does not match the session packet.");
     receipts.push(receipt);
   }
-
-  return {
-    transport: "m1-session",
-    packet: session.packet,
-    deltas: [...session.deltas, delta],
-    receipts,
-  };
+  return { transport: "m1-session", packet: session.packet, deltas: [...session.deltas, delta], receipts };
 }
 
 function materializeRecordOnlySession(
@@ -212,17 +178,19 @@ function materializeRecordOnlySession(
 ): { page: JuanPageDocument; currentPacket: MeaningPacket } {
   const currentPacket = replayMeaningSession(session);
   const projected = materializeMeaningPacket(currentPacket, capabilities);
-  const allowedActions = (projected.actions ?? []).filter((action) => action.kind !== "open");
-  const allowedActionIds = new Set(allowedActions.map((action) => action.id));
-  const notice = "This is a record-only URL session. Your edits and decisions are stored as typed deltas in the Share link; nothing executes remotely from this page.";
+  const allowedAffordances = (projected.affordances ?? []).filter((affordance) => affordance.effect.kind !== "navigate");
+  const allowedIds = new Set(allowedAffordances.map((affordance) => affordance.id));
+  const interactionState = interactionStateFromMeaningDeltas(session.deltas);
+  const notice = "This is a record-only URL session. Your scopes, selections, edits, and decisions are stored as typed deltas in the Share link; nothing executes remotely from this page.";
   const page = validatePage({
     ...projected,
     description: projected.description ? `${projected.description} ${notice}` : notice,
-    actions: allowedActions,
-    objects: projected.objects.map((object) => ({
-      ...object,
-      actionIds: object.actionIds?.filter((actionId) => allowedActionIds.has(actionId)),
-    })),
+    affordances: allowedAffordances,
+    bindings: projected.bindings?.filter((binding) => allowedIds.has(binding.affordance)),
+    state: {
+      scopes: { ...(projected.state?.scopes ?? {}), ...(interactionState.scopes ?? {}) },
+      selections: { ...(projected.state?.selections ?? {}), ...(interactionState.selections ?? {}) },
+    },
     metadata: {
       ...(projected.metadata ?? {}),
       "m1.trust": "draft",
@@ -235,25 +203,16 @@ function materializeRecordOnlySession(
   return { page, currentPacket };
 }
 
-export async function encodePage(
-  input: JuanPageDocument,
-  encoding: PagePayloadEncoding = DEFAULT_PAGE_ENCODING,
-): Promise<string> {
+export async function encodePage(input: JuanPageDocument, encoding: PagePayloadEncoding = DEFAULT_PAGE_ENCODING): Promise<string> {
   return encodeJson(validatePage(input), encoding);
 }
 
-export async function encodeMeaningPacket(
-  input: MeaningPacket,
-  encoding: PagePayloadEncoding = DEFAULT_PAGE_ENCODING,
-): Promise<string> {
+export async function encodeMeaningPacket(input: MeaningPacket, encoding: PagePayloadEncoding = DEFAULT_PAGE_ENCODING): Promise<string> {
   const packet = validateMeaningPacket(input);
   return encodeJson({ transport: "m1", packet } satisfies MeaningEnvelope, encoding);
 }
 
-export async function encodeMeaningSession(
-  input: MeaningSession,
-  encoding: PagePayloadEncoding = DEFAULT_PAGE_ENCODING,
-): Promise<string> {
+export async function encodeMeaningSession(input: MeaningSession, encoding: PagePayloadEncoding = DEFAULT_PAGE_ENCODING): Promise<string> {
   return encodeJson(validateMeaningSession(input), encoding);
 }
 
@@ -283,50 +242,29 @@ export async function decodePage(
   return (await decodePagePayload(payload, declared, capabilities)).page;
 }
 
-export async function encodePageToFragment(
-  page: JuanPageDocument,
-  encoding: PagePayloadEncoding = DEFAULT_PAGE_ENCODING,
-): Promise<string> {
-  return `#v=3&enc=${encoding}&data=${await encodePage(page, encoding)}`;
+export async function encodePageToFragment(page: JuanPageDocument, encoding: PagePayloadEncoding = DEFAULT_PAGE_ENCODING): Promise<string> {
+  return `#v=5&enc=${encoding}&data=${await encodePage(page, encoding)}`;
 }
 
-export async function encodeMeaningPacketToFragment(
-  packet: MeaningPacket,
-  encoding: PagePayloadEncoding = DEFAULT_PAGE_ENCODING,
-): Promise<string> {
-  return `#v=3&enc=${encoding}&data=${await encodeMeaningPacket(packet, encoding)}`;
+export async function encodeMeaningPacketToFragment(packet: MeaningPacket, encoding: PagePayloadEncoding = DEFAULT_PAGE_ENCODING): Promise<string> {
+  return `#v=5&enc=${encoding}&data=${await encodeMeaningPacket(packet, encoding)}`;
 }
 
-export async function encodeMeaningSessionToFragment(
-  session: MeaningSession,
-  encoding: PagePayloadEncoding = DEFAULT_PAGE_ENCODING,
-): Promise<string> {
-  return `#v=4&enc=${encoding}&data=${await encodeMeaningSession(session, encoding)}`;
+export async function encodeMeaningSessionToFragment(session: MeaningSession, encoding: PagePayloadEncoding = DEFAULT_PAGE_ENCODING): Promise<string> {
+  return `#v=5&enc=${encoding}&data=${await encodeMeaningSession(session, encoding)}`;
 }
 
-export async function buildPageShareUrl(
-  page: JuanPageDocument,
-  baseUrl: string,
-  encoding: PagePayloadEncoding = DEFAULT_PAGE_ENCODING,
-): Promise<string> {
+export async function buildPageShareUrl(page: JuanPageDocument, baseUrl: string, encoding: PagePayloadEncoding = DEFAULT_PAGE_ENCODING): Promise<string> {
   const normalized = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
   return `${normalized}${await encodePageToFragment(page, encoding)}`;
 }
 
-export async function buildMeaningShareUrl(
-  packet: MeaningPacket,
-  baseUrl: string,
-  encoding: PagePayloadEncoding = DEFAULT_PAGE_ENCODING,
-): Promise<string> {
+export async function buildMeaningShareUrl(packet: MeaningPacket, baseUrl: string, encoding: PagePayloadEncoding = DEFAULT_PAGE_ENCODING): Promise<string> {
   const normalized = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
   return `${normalized}${await encodeMeaningPacketToFragment(packet, encoding)}`;
 }
 
-export async function buildMeaningSessionShareUrl(
-  session: MeaningSession,
-  baseUrl: string,
-  encoding: PagePayloadEncoding = DEFAULT_PAGE_ENCODING,
-): Promise<string> {
+export async function buildMeaningSessionShareUrl(session: MeaningSession, baseUrl: string, encoding: PagePayloadEncoding = DEFAULT_PAGE_ENCODING): Promise<string> {
   const normalized = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
   return `${normalized}${await encodeMeaningSessionToFragment(session, encoding)}`;
 }

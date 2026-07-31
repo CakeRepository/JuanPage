@@ -16,13 +16,19 @@ const componentTree = {
     type: "Card",
     key: object.id,
     props: { name: object.name, status: object.status, tone: object.tone },
-    children: (object.fields ?? []).map((field) => ({ type: "Field", key: field.key, props: field })),
+    children: [
+      ...(object.fields ?? []).map((field) => ({ type: "Field", key: field.key, props: field })),
+      ...(page.bindings ?? [])
+        .filter((binding) => (binding.target.kind === "object" || binding.target.kind === "field") && binding.target.object === object.id)
+        .map((binding) => ({ type: "Control", key: binding.id, props: { binding, affordance: page.affordances?.find((item) => item.id === binding.affordance) } })),
+    ],
   })),
 };
 const naturalLanguage = [
-  `Create a ${page.view?.defaultLens ?? "cards"} interface titled ${page.title}.`,
+  `Create an adaptive interface titled ${page.title}. Do not expose any interaction unless it is explicitly described.`,
   ...page.objects.map((object) => `Show ${object.type} ${object.name} with status ${object.status ?? "none"}; fields: ${(object.fields ?? []).map((field) => `${field.key}=${String(field.value)}`).join(", ") || "none"}.`),
-  ...(page.actions ?? []).map((action) => `Offer action ${action.id} labeled ${action.label}; require the authorization semantics encoded by the source protocol.`),
+  ...(page.affordances ?? []).map((affordance) => `Provide semantic affordance ${affordance.id} labeled ${affordance.label} with effect ${affordance.effect.kind} and input ${affordance.input.kind}.`),
+  ...(page.bindings ?? []).map((binding) => `Bind affordance ${binding.affordance} to ${JSON.stringify(binding.target)}.`),
 ].join("\n");
 
 const formats = {
@@ -99,7 +105,7 @@ const sizeRows = Object.fromEntries(Object.entries(formats).map(([name, value]) 
 }));
 
 const report = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   fixture: deploymentReferencePacket[1],
   runs,
   environment: { node: process.version, platform: process.platform, architecture: process.arch },
@@ -110,7 +116,7 @@ const report = {
     "Natural-language token counts use a documented four-bytes-per-token approximation, not a model-specific tokenizer.",
     "The component tree is a neutral equivalent representation, not an implementation of a named external framework.",
     "M1 pays validation and materialization cost that direct JuanPage JSON does not; JuanPage is therefore faster when the producer already has canonical JuanPage data.",
-    "M1 can be larger than terse natural-language instructions for very small pages and less convenient for manual authoring.",
+    "JuanPage 2 encodes explicit affordances and bindings, which costs bytes but prevents inert or ambiguous interaction.",
   ],
 };
 

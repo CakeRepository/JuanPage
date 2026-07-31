@@ -1,4 +1,4 @@
-import type { JuanPageDocument, PageAction, PageObject } from "../schema/page.js";
+import type { JuanPageDocument, PageAffordance, PageBinding, PageObject } from "../schema/page.js";
 
 export type A2UIBridgeModel = Readonly<{
   protocol: "a2ui-bridge";
@@ -29,17 +29,24 @@ function objectModel(object: PageObject): Readonly<Record<string, unknown>> {
     status: object.status,
     group: object.group,
     fields: Object.fromEntries((object.fields ?? []).map((field) => [field.key, field.value])),
-    actions: object.actionIds ?? [],
   };
 }
 
-function actionModel(action: PageAction): Readonly<Record<string, unknown>> {
+function affordanceModel(affordance: PageAffordance): Readonly<Record<string, unknown>> {
   return {
-    id: action.id,
-    kind: action.kind,
-    label: action.label,
-    target: "target" in action ? action.target : undefined,
+    id: affordance.id,
+    label: affordance.label,
+    effect: affordance.effect,
+    input: affordance.input,
+    tone: affordance.tone,
   };
+}
+
+function bindingsForObject(page: JuanPageDocument, objectId: string): PageBinding[] {
+  return (page.bindings ?? []).filter((binding) =>
+    (binding.target.kind === "object" || binding.target.kind === "field")
+    && binding.target.object === objectId,
+  );
 }
 
 export function toA2UIBridge(page: JuanPageDocument, surfaceId = "juanpager"): A2UIBridgeModel {
@@ -51,12 +58,18 @@ export function toA2UIBridge(page: JuanPageDocument, surfaceId = "juanpager"): A
       intent: page.intent,
       objects: Object.fromEntries(page.objects.map((object) => [object.id, objectModel(object)])),
       relations: page.relations ?? [],
+      metrics: page.metrics ?? [],
+      projections: page.projections ?? [],
+      scopes: page.scopes ?? [],
+      state: page.state ?? {},
+      affordances: Object.fromEntries((page.affordances ?? []).map((affordance) => [affordance.id, affordanceModel(affordance)])),
+      bindings: page.bindings ?? [],
     },
     components: page.objects.map((object) => ({
       id: `component:${object.id}`,
       component: "adaptive-object",
       bind: `/objects/${object.id}`,
-      actions: object.actionIds ?? [],
+      bindings: bindingsForObject(page, object.id),
     })),
   };
 }
@@ -71,7 +84,12 @@ export function toAGUIBridgeEvents(page: JuanPageDocument): readonly AGUIBridgeE
         title: page.title,
         objects: page.objects.map(objectModel),
         relations: page.relations ?? [],
-        actions: (page.actions ?? []).map(actionModel),
+        metrics: page.metrics ?? [],
+        projections: page.projections ?? [],
+        scopes: page.scopes ?? [],
+        state: page.state ?? {},
+        affordances: (page.affordances ?? []).map(affordanceModel),
+        bindings: page.bindings ?? [],
       },
     },
   ];

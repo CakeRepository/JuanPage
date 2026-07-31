@@ -15,15 +15,17 @@ import {
   createActionDelta,
   createActionReceipt,
   createFactDelta,
+  createScopeDelta,
+  createSelectionDelta,
   materializeMeaningPacket,
   MeaningProtocolError,
   type ActionPolicy,
   type MeaningDelta,
 } from "./protocol/meaning.js";
-import { renderPage, type PageActionInvocation } from "./rendering/renderPage.js";
+import { renderPage, type PageAffordanceInvocation } from "./rendering/renderPage.js";
 import { DocumentValidationError } from "./schema/errors.js";
 import type { JuanPageDocument, PageScalar } from "./schema/page.js";
-import type { PageValueMutation } from "./state/pageState.js";
+import type { PageInteractionMutation } from "./state/pageState.js";
 import {
   createBrowserEventTransport,
   deltaMessage,
@@ -39,12 +41,11 @@ function errorPage(error: unknown): JuanPageDocument {
   const known = error instanceof DocumentValidationError || error instanceof PagePayloadError || error instanceof MeaningProtocolError;
   const details = known ? error.details : error instanceof Error ? error.stack ?? error.message : String(error);
   return {
-    version: "1.0",
+    version: "2.0",
     title: "This world could not be opened",
     intent: "JuanPager rejected data it could not safely understand.",
-    description: "The runtime accepts JuanPage 1.0, an M1 meaning packet, or a record-only M1 URL session.",
+    description: "The runtime accepts JuanPage 2.0, an M1 meaning packet, or a record-only M1 URL session.",
     theme: "dark",
-    view: { defaultLens: "cards", groupBy: "none" },
     objects: [{
       id: "error",
       type: "system-error",
@@ -63,18 +64,22 @@ function errorPage(error: unknown): JuanPageDocument {
 let removeMeaningBridge: (() => void) | undefined;
 const browserTransport = createBrowserEventTransport(window);
 
-function policyFromPage(page: JuanPageDocument, actionId: string): ActionPolicy {
-  const value = page.metadata?.[`m1.policy.${actionId}`];
+function policyFromPage(page: JuanPageDocument, affordanceId: string): ActionPolicy {
+  const value = page.metadata?.[`m1.policy.${affordanceId}`];
   return value === "approval" || value === "deny" ? value : "allow";
 }
 
-function scalarArgs(page: JuanPageDocument, invocation: PageActionInvocation): Readonly<Record<string, PageScalar>> {
-  const operation = page.metadata?.[`m1.operation.${invocation.actionId}`];
-  return {
-    kind: invocation.kind,
+function scalarArgs(page: JuanPageDocument, invocation: PageAffordanceInvocation): Readonly<Record<string, PageScalar>> {
+  const operation = page.metadata?.[`m1.operation.${invocation.affordanceId}`];
+  const args: Record<string, PageScalar> = {
+    effect: invocation.effect,
     objectId: invocation.objectId ?? null,
-    operation: typeof operation === "string" ? operation : null,
+    value: invocation.value ?? null,
+    operation: typeof operation === "string" ? operation : invocation.operation ?? null,
   };
+  for (const [scope, value] of Object.entries(invocation.scopes)) args[`scope.${scope}`] = value;
+  for (const [selection, values] of Object.entries(invocation.selections)) args[`selection.${selection}`] = values.join(",");
+  return args;
 }
 
 function createMeaningBridge(
@@ -82,7 +87,7 @@ function createMeaningBridge(
   initialSession?: MeaningSession,
   transport: MeaningTransport = browserTransport,
 ): {
-  onAction?: (invocation: PageActionInvocation) => Promise<void>;
+  onAffordance?: (invocation: PageAffordanceInvocation) => Promise<void>;
   session?: () => MeaningSession;
 } {
   removeMeaningBridge?.();
@@ -98,28 +103,31 @@ function createMeaningBridge(
     await transport.send(deltaMessage(delta));
   };
 
-  const valueListener = (event: Event): void => {
-    const mutation = (event as CustomEvent<PageValueMutation>).detail;
+  const interactionListener = (event: Event): void => {
+    const mutation = (event as CustomEvent<PageInteractionMutation>).detail;
     if (!mutation) return;
-    void sendDelta(createFactDelta(packetId, revision, mutation.target, mutation.field, mutation.value)).catch((error) => {
-      console.error("JuanPager could not record an M1 fact delta", error);
+    let delta: MeaningDelta;
+    if (mutation.kind === "set") delta = createFactDelta(packetId, revision, mutation.target, mutation.field, mutation.value);
+    else if (mutation.kind === "scope") delta = createScopeDelta(packetId, revision, mutation.scope, mutation.value);
+    else delta = createSelectionDelta(packetId, revision, mutation.selection, mutation.values);
+    void sendDelta(delta).catch((error) => {
+      console.error("JuanPager could not record an M1 interaction delta", error);
     });
   };
-  window.addEventListener("juanpager:value", valueListener);
-  removeMeaningBridge = () => window.removeEventListener("juanpager:value", valueListener);
+  window.addEventListener("juanpager:interaction", interactionListener);
+  removeMeaningBridge = () => window.removeEventListener("juanpager:interaction", interactionListener);
 
   return {
     session: session ? () => session! : undefined,
-    async onAction(invocation): Promise<void> {
-      const policy = policyFromPage(page, invocation.actionId);
-      const target = invocation.target && invocation.target !== "page"
-        ? invocation.target
-        : invocation.objectId ?? null;
+    async onAffordance(invocation): Promise<void> {
+      if (invocation.effect !== "invoke") return;
+      const policy = policyFromPage(page, invocation.affordanceId);
+      const target = invocation.objectId ?? null;
       const delta = createActionDelta(
         packetId,
         revision,
         "actor:human:browser",
-        invocation.actionId,
+        invocation.affordanceId,
         target,
         scalarArgs(page, invocation),
         policy,
@@ -145,13 +153,12 @@ function render(
   const onShare = bridge.session
     ? () => buildMeaningSessionShareUrl(bridge.session!(), appBaseUrl())
     : options.onShare;
-  renderPage(page, mount, { builderHref: builderPath(), onShare, onAction: bridge.onAction });
+  renderPage(page, mount, { builderHref: builderPath(), onShare, onAffordance: bridge.onAffordance });
 }
 
 async function bootstrap(): Promise<void> {
   const mount = document.getElementById("app");
   if (!mount) return;
-
   const fragment = parseFragment(window.location.hash);
   if (!fragment.data) {
     const page = materializeMeaningPacket(operationsControlRoomPacket, browserRendererCapabilities());
@@ -159,10 +166,9 @@ async function bootstrap(): Promise<void> {
     render(page, mount, { session });
     return;
   }
-
   try {
-    if (fragment.version && fragment.version !== "3" && fragment.version !== "4") {
-      throw new Error(`Unsupported fragment version v=${fragment.version}. JuanPage links use v=3 or v=4.`);
+    if (fragment.version && fragment.version !== "5") {
+      throw new Error(`Unsupported fragment version v=${fragment.version}. JuanPage 2.0 links use v=5.`);
     }
     const decoded = await decodePagePayload(fragment.data, fragment.encoding as PagePayloadEncoding | undefined);
     if (decoded.kind === "m1-session") {
@@ -170,9 +176,7 @@ async function bootstrap(): Promise<void> {
       return;
     }
     if (decoded.kind === "m1") {
-      render(decoded.page, mount, {
-        onShare: () => buildMeaningShareUrl(decoded.packet, appBaseUrl()),
-      });
+      render(decoded.page, mount, { onShare: () => buildMeaningShareUrl(decoded.packet, appBaseUrl()) });
       return;
     }
     render(decoded.page, mount, { onShare: () => window.location.href });
