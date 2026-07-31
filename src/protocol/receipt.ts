@@ -22,6 +22,8 @@ export type MomentReceipt = {
   context?: string;
 };
 
+const RECEIPT_PREFIX = "juanreceipt:v1:";
+
 function productDefaults(product: ProductEntity): { checked: boolean; quantity: number } {
   return {
     checked: product.checked ?? false,
@@ -74,28 +76,33 @@ export function buildMomentReceipt(
   };
 }
 
-export function encodeMomentReceipt(receipt: MomentReceipt): string {
+export function encodeMomentReceiptToken(receipt: MomentReceipt): string {
   const bytes = new TextEncoder().encode(JSON.stringify(receipt));
   return bytesToBase64Url(bytes);
 }
 
-export function decodeMomentReceipt(token: string): MomentReceipt {
+export function encodeMomentReceipt(receipt: MomentReceipt): string {
+  return `${RECEIPT_PREFIX}${encodeMomentReceiptToken(receipt)}`;
+}
+
+export function decodeMomentReceipt(value: string): MomentReceipt {
+  const token = value.startsWith(RECEIPT_PREFIX) ? value.slice(RECEIPT_PREFIX.length) : value;
   const parsed = JSON.parse(new TextDecoder().decode(base64UrlToBytes(token))) as unknown;
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
     throw new Error("Receipt must be an object");
   }
-  const value = parsed as Record<string, unknown>;
+  const object = parsed as Record<string, unknown>;
   if (
-    value.version !== "0.1" ||
-    typeof value.source !== "string" ||
-    typeof value.title !== "string" ||
-    typeof value.updatedAt !== "string" ||
-    !Array.isArray(value.changes)
+    object.version !== "0.1" ||
+    typeof object.source !== "string" ||
+    typeof object.title !== "string" ||
+    typeof object.updatedAt !== "string" ||
+    !Array.isArray(object.changes)
   ) {
     throw new Error("Receipt has an unsupported shape");
   }
 
-  const changes: ReceiptChange[] = value.changes.map((entry) => {
+  const changes: ReceiptChange[] = object.changes.map((entry) => {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
       throw new Error("Receipt change must be an object");
     }
@@ -111,12 +118,12 @@ export function decodeMomentReceipt(token: string): MomentReceipt {
 
   return {
     version: "0.1",
-    source: value.source,
-    title: value.title,
-    updatedAt: value.updatedAt,
+    source: object.source,
+    title: object.title,
+    updatedAt: object.updatedAt,
     changes,
-    ...(typeof value.note === "string" ? { note: value.note.slice(0, 1000) } : {}),
-    ...(typeof value.context === "string" ? { context: value.context } : {}),
+    ...(typeof object.note === "string" ? { note: object.note.slice(0, 1000) } : {}),
+    ...(typeof object.context === "string" ? { context: object.context } : {}),
   };
 }
 
@@ -179,6 +186,6 @@ export function buildMomentReceiptText(
 
   if (receipt.note) lines.push(`Note: ${receipt.note}`);
   if (receipt.context) lines.push(`Context: ${receipt.context}`);
-  lines.push("", `juanreceipt:v1:${encodeMomentReceipt(receipt)}`);
+  lines.push("", encodeMomentReceipt(receipt));
   return lines.join("\n");
 }
