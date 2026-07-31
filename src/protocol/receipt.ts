@@ -1,6 +1,10 @@
-import { bytesToBase64Url } from "../encoding/base64url.js";
+import { base64UrlToBytes, bytesToBase64Url } from "../encoding/base64url.js";
 import type { JuanPagerMomentDoc, ProductEntity } from "../schema/moment.js";
-import { momentStateKey, type LocalPageState } from "../state/localState.js";
+import {
+  emptyLocalState,
+  momentStateKey,
+  type LocalPageState,
+} from "../state/localState.js";
 
 export type ReceiptChange = {
   id: string;
@@ -72,7 +76,77 @@ export function buildMomentReceipt(
 
 export function encodeMomentReceipt(receipt: MomentReceipt): string {
   const bytes = new TextEncoder().encode(JSON.stringify(receipt));
-  return `juanreceipt:v1:${bytesToBase64Url(bytes)}`;
+  return bytesToBase64Url(bytes);
+}
+
+export function decodeMomentReceipt(token: string): MomentReceipt {
+  const parsed = JSON.parse(new TextDecoder().decode(base64UrlToBytes(token))) as unknown;
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("Receipt must be an object");
+  }
+  const value = parsed as Record<string, unknown>;
+  if (
+    value.version !== "0.1" ||
+    typeof value.source !== "string" ||
+    typeof value.title !== "string" ||
+    typeof value.updatedAt !== "string" ||
+    !Array.isArray(value.changes)
+  ) {
+    throw new Error("Receipt has an unsupported shape");
+  }
+
+  const changes: ReceiptChange[] = value.changes.map((entry) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      throw new Error("Receipt change must be an object");
+    }
+    const change = entry as Record<string, unknown>;
+    if (typeof change.id !== "string") throw new Error("Receipt change id is required");
+    const normalized: ReceiptChange = { id: change.id };
+    if (typeof change.checked === "boolean") normalized.checked = change.checked;
+    if (typeof change.quantity === "number" && Number.isInteger(change.quantity)) {
+      normalized.quantity = Math.max(0, Math.min(9999, change.quantity));
+    }
+    return normalized;
+  });
+
+  return {
+    version: "0.1",
+    source: value.source,
+    title: value.title,
+    updatedAt: value.updatedAt,
+    changes,
+    ...(typeof value.note === "string" ? { note: value.note.slice(0, 1000) } : {}),
+    ...(typeof value.context === "string" ? { context: value.context } : {}),
+  };
+}
+
+export function receiptHasChanges(receipt: MomentReceipt): boolean {
+  return receipt.changes.length > 0 || Boolean(receipt.note?.trim());
+}
+
+export function stateFromReceipt(
+  moment: JuanPagerMomentDoc,
+  receipt: MomentReceipt,
+): LocalPageState {
+  if (receipt.source !== momentStateKey(moment)) {
+    throw new Error("Receipt does not belong to this moment");
+  }
+
+  const known = new Set(
+    moment.entities
+      .filter((entity): entity is ProductEntity => entity.type === "product")
+      .map((product) => product.id),
+  );
+  const state = emptyLocalState();
+  for (const change of receipt.changes) {
+    if (!known.has(change.id)) continue;
+    state.products[change.id] = {
+      ...(typeof change.checked === "boolean" ? { checked: change.checked } : {}),
+      ...(typeof change.quantity === "number" ? { quantity: change.quantity } : {}),
+    };
+  }
+  if (receipt.note) state.responseNote = receipt.note;
+  return state;
 }
 
 export function buildMomentReceiptText(
@@ -105,6 +179,6 @@ export function buildMomentReceiptText(
 
   if (receipt.note) lines.push(`Note: ${receipt.note}`);
   if (receipt.context) lines.push(`Context: ${receipt.context}`);
-  lines.push("", encodeMomentReceipt(receipt));
+  lines.push("", `juanreceipt:v1:${encodeMomentReceipt(receipt)}`);
   return lines.join("\n");
 }
