@@ -1,0 +1,121 @@
+{
+  "version": 1,
+  "principle": "Every human interface is a projection of information, relationships, state, time, space, media, computation, or authority plus real semantic affordances.",
+  "canonicalModel": {
+    "transport": "M1",
+    "surface": "JuanPage 2.0",
+    "renderer": "renderPage",
+    "humanOutput": ["fact delta", "scope delta", "selection delta", "operation delta", "receipt"]
+  },
+  "domains": [
+    {
+      "id": "records",
+      "examples": ["cards", "tables", "forms", "profiles", "catalogs", "inventories"],
+      "semanticPrimitives": ["object", "field", "metric", "scope", "selection"],
+      "status": "implemented",
+      "evidence": ["src/schema/page.ts", "src/rendering/renderPage.ts", "tests/renderPage.test.ts"]
+    },
+    {
+      "id": "actions",
+      "examples": ["buttons", "menus", "commands", "approvals", "navigation", "copy"],
+      "semanticPrimitives": ["affordance", "binding", "invoke", "navigate", "copy"],
+      "status": "implemented",
+      "evidence": ["src/schema/page.ts", "src/protocol/meaning.ts", "tests/renderPage.test.ts", "tests/meaning.test.ts"]
+    },
+    {
+      "id": "quantitative",
+      "examples": ["charts", "dashboards", "gauges", "scorecards", "progress", "financial views"],
+      "semanticPrimitives": ["metric", "projection", "scope", "selection"],
+      "status": "partial",
+      "evidence": ["src/schema/page.ts", "src/rendering/renderPage.ts"],
+      "missing": ["multi-series semantics", "distribution semantics", "uncertainty", "matrix dimensions"]
+    },
+    {
+      "id": "hierarchy",
+      "examples": ["trees", "outlines", "org charts", "file browsers", "nested navigation"],
+      "semanticPrimitives": ["object", "relation", "selection", "scope"],
+      "status": "partial",
+      "evidence": ["src/schema/page.ts"],
+      "missing": ["ordered parent-child semantics", "expansion state", "path semantics"]
+    },
+    {
+      "id": "network",
+      "examples": ["knowledge graphs", "dependency maps", "topologies", "social graphs", "flow diagrams"],
+      "semanticPrimitives": ["object", "relation", "selection", "inspect"],
+      "status": "partial",
+      "evidence": ["src/schema/page.ts", "src/rendering/renderPage.ts"],
+      "missing": ["relation direction semantics", "relation measures", "graph traversal scope"]
+    },
+    {
+      "id": "temporal",
+      "examples": ["timelines", "calendars", "schedules", "Gantt charts", "playback", "event streams"],
+      "semanticPrimitives": ["field", "relation", "projection", "scope"],
+      "status": "partial",
+      "evidence": ["src/schema/page.ts"],
+      "missing": ["interval values", "recurrence", "temporal ordering", "playhead state"]
+    },
+    {
+      "id": "spatial",
+      "examples": ["maps", "floor plans", "diagrams", "geospatial dashboards", "3D scenes"],
+      "semanticPrimitives": ["object", "relation", "field", "selection", "scope"],
+      "status": "missing",
+      "missing": ["coordinate values", "geometry", "viewport state", "spatial relation semantics"]
+    },
+    {
+      "id": "documents",
+      "examples": ["articles", "reports", "books", "code", "diffs", "annotations"],
+      "semanticPrimitives": ["object", "field", "relation", "selection", "set"],
+      "status": "partial",
+      "evidence": ["src/schema/page.ts", "src/rendering/renderPage.ts"],
+      "missing": ["ordered content blocks", "ranges", "anchors", "citations", "revision semantics"]
+    },
+    {
+      "id": "media",
+      "examples": ["images", "audio", "video", "transcripts", "waveforms", "captions"],
+      "semanticPrimitives": ["object", "field", "relation", "scope", "selection"],
+      "status": "partial",
+      "evidence": ["src/schema/page.ts", "src/rendering/renderPage.ts"],
+      "missing": ["typed media resources", "tracks", "time ranges", "playback state", "alternate representations"]
+    },
+    {
+      "id": "communication",
+      "examples": ["chat", "email", "comments", "threads", "notifications", "presence"],
+      "semanticPrimitives": ["object", "relation", "field", "invoke"],
+      "status": "partial",
+      "evidence": ["src/schema/page.ts", "src/protocol/meaning.ts"],
+      "missing": ["ordered streams", "authors", "delivery state", "thread topology", "presence state"]
+    },
+    {
+      "id": "simulation",
+      "examples": ["editors", "CAD", "games", "digital twins", "scientific models", "what-if tools"],
+      "semanticPrimitives": ["object", "relation", "set", "invoke", "receipt"],
+      "status": "missing",
+      "missing": ["continuous state", "transaction groups", "undo-redo semantics", "viewport state", "simulation clocks"]
+    },
+    {
+      "id": "sensory-access",
+      "examples": ["screen readers", "voice control", "switch access", "haptics", "braille", "reduced motion"],
+      "semanticPrimitives": ["label", "description", "role", "state", "affordance"],
+      "status": "partial",
+      "evidence": ["src/rendering/renderPage.ts", "tests/e2e/semantic-surface.spec.ts"],
+      "missing": ["formal alternate modality contract", "focus restoration proof", "high contrast evidence", "assistive technology matrix"]
+    },
+    {
+      "id": "authority-trust",
+      "examples": ["sign-in", "consent", "permissions", "signatures", "payments", "destructive actions"],
+      "semanticPrimitives": ["capability", "policy", "invoke", "approval", "receipt"],
+      "status": "implemented",
+      "evidence": ["src/protocol/envelope.ts", "src/protocol/trust-projection.ts", "tests/conformance/security.test.ts", "tests/envelope.test.ts"]
+    }
+  ],
+  "universalityRule": {
+    "allowedStatuses": ["implemented", "partial", "missing", "external"],
+    "requirements": [
+      "Every domain has examples and semantic primitives.",
+      "Partial and missing domains name concrete gaps.",
+      "No domain may claim implemented without executable evidence.",
+      "A new visible interaction must reduce to a typed semantic affordance and typed human output.",
+      "No domain may introduce another public UI schema or renderer."
+    ]
+  }
+}
