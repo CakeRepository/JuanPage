@@ -112,6 +112,11 @@ function copyObject(object: PageObject, state: PageState): string {
   return lines.filter(Boolean).join("\n");
 }
 
+function isInspectable(object: PageObject): boolean {
+  if (object.interaction === "display") return false;
+  return object.interaction === "inspect" || Boolean(object.actionIds?.length || object.url);
+}
+
 export function renderPage(page: JuanPageDocument, mount: HTMLElement, options: UniversalRenderOptions = {}): RenderHandle {
   applyTheme(page.theme);
   document.title = `${page.title} · JuanPager`;
@@ -188,7 +193,22 @@ export function renderPage(page: JuanPageDocument, mount: HTMLElement, options: 
       input.addEventListener("change", () => { setPageValue(state, targetObject.id, action.field, input.checked); persist(); draw(); });
       append(label, input);
     } else if (action.kind === "number") {
-      const input = el("input", { attrs: { type: "number", value: String(current ?? action.initial ?? 0), min: action.min, max: action.max, step: action.step ?? 1, "data-action-id": action.id } }) as HTMLInputElement;
+      const input = el("input", {
+        attrs: {
+          type: action.control === "range" ? "range" : "number",
+          value: String(current ?? action.initial ?? 0),
+          min: action.min,
+          max: action.max,
+          step: action.step ?? 1,
+          "data-action-id": action.id,
+        },
+      }) as HTMLInputElement;
+      const output = action.control === "range"
+        ? el("output", { className: "jp-u-range-value", text: input.value, attrs: { for: action.id } })
+        : undefined;
+      input.addEventListener("input", () => {
+        if (output) output.textContent = input.value;
+      });
       input.addEventListener("change", () => {
         let next = Number(input.value);
         if (!Number.isFinite(next)) next = action.initial ?? 0;
@@ -198,7 +218,7 @@ export function renderPage(page: JuanPageDocument, mount: HTMLElement, options: 
         persist();
         draw();
       });
-      append(label, input);
+      append(label, input, output);
     } else if (action.kind === "choice") {
       const select = el("select", { attrs: { "data-action-id": action.id } }) as HTMLSelectElement;
       for (const option of action.options) append(select, el("option", { text: option.label, attrs: { value: option.value } }));
@@ -224,7 +244,16 @@ export function renderPage(page: JuanPageDocument, mount: HTMLElement, options: 
   });
 
   const card = (object: PageObject): HTMLElement => {
-    const article = el("article", { className: `jp-u-card jp-u-tone-${object.tone ?? "neutral"}`, attrs: { "data-object-id": object.id, tabindex: "0" } });
+    const inspectable = isInspectable(object);
+    const article = el("article", {
+      className: `jp-u-card jp-u-tone-${object.tone ?? "neutral"}${inspectable ? " is-interactive" : ""}`,
+      attrs: {
+        "data-object-id": object.id,
+        tabindex: inspectable ? "0" : undefined,
+        role: inspectable ? "button" : undefined,
+        "aria-label": inspectable ? `Inspect ${object.name}` : undefined,
+      },
+    });
     if (object.imageUrl) append(article, imageWithFallback(object.imageUrl, object.name, "jp-u-image"));
     const head = el("div", { className: "jp-u-card-head" });
     append(head, el("span", { className: "jp-u-type", text: humanizeKey(object.type) }));
@@ -237,9 +266,16 @@ export function renderPage(page: JuanPageDocument, mount: HTMLElement, options: 
       for (const field of prominent) append(row, el("div", { text: formatValue(objectValue(object, field.key, state), field) }));
       append(article, row);
     }
-    const open = (): void => { state.selectedId = object.id; persist(); draw(); };
-    article.addEventListener("click", (event) => { if (!(event.target as Element).closest("button,a,input,select,textarea,label")) open(); });
-    article.addEventListener("keydown", (event) => { if (event.key === "Enter") open(); });
+    if (inspectable) {
+      const open = (): void => { state.selectedId = object.id; persist(); draw(); };
+      article.addEventListener("click", (event) => { if (!(event.target as Element).closest("button,a,input,select,textarea,label")) open(); });
+      article.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          open();
+        }
+      });
+    }
     return article;
   };
 
@@ -279,10 +315,27 @@ export function renderPage(page: JuanPageDocument, mount: HTMLElement, options: 
     table.append(head);
     const body = el("tbody");
     for (const object of objects) {
-      const row = el("tr", { attrs: { "data-object-id": object.id, tabindex: "0" } });
+      const inspectable = isInspectable(object);
+      const row = el("tr", {
+        className: inspectable ? "is-interactive" : undefined,
+        attrs: {
+          "data-object-id": object.id,
+          tabindex: inspectable ? "0" : undefined,
+          "aria-label": inspectable ? `Inspect ${object.name}` : undefined,
+        },
+      });
       append(row, el("th", { text: object.name }), el("td", { text: humanizeKey(object.type) }), el("td", { text: object.status ?? "—" }));
       for (const fieldKey of keys) append(row, el("td", { text: formatValue(objectValue(object, fieldKey, state), objectField(object, fieldKey)) }));
-      row.addEventListener("click", () => { state.selectedId = object.id; persist(); draw(); });
+      if (inspectable) {
+        const open = (): void => { state.selectedId = object.id; persist(); draw(); };
+        row.addEventListener("click", open);
+        row.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            open();
+          }
+        });
+      }
       append(body, row);
     }
     append(table, body);
@@ -388,7 +441,7 @@ export function renderPage(page: JuanPageDocument, mount: HTMLElement, options: 
     else append(workspace, cardsLens(objects));
     append(root, header, controls, workspace);
     const selected = state.selectedId ? pageObject(page, state.selectedId) : undefined;
-    if (selected) append(root, inspector(selected));
+    if (selected && isInspectable(selected)) append(root, inspector(selected));
     mount.replaceChildren(root);
   }
 
