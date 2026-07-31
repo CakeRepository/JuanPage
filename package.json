@@ -32,7 +32,7 @@
     "test:consumer": "tsx scripts/verify-packed-sdk.ts",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "lint": "eslint . --ext .ts,.js",
+    "lint": "eslint .",
     "check:one-runtime": "tsx scripts/enforce-one-runtime.ts",
     "check:public-api": "tsx scripts/check-public-api.ts",
     "check:release-version": "tsx scripts/check-release-version.ts",
@@ -42,7 +42,7 @@
     "package:dry-run": "npm pack --dry-run --json",
     "package:size": "npm pack --dry-run --json",
     "sbom": "npm sbom --sbom-format cyclonedx",
-    "release:dry-run": "npm run check:release-version && npm run build && npm run check:public-api && npm run test:consumer && npm run benchmark:budget && npm run package:dry-run",
+    "release:dry-run": "npm audit --audit-level=high && npm run check:release-version && npm run build && npm run check:public-api && npm run test:consumer && npm run benchmark:budget && npm run package:dry-run",
     "encode": "tsx scripts/encode.ts",
     "decode": "tsx scripts/decode.ts",
     "prepack": "npm run build:sdk && npm test"
