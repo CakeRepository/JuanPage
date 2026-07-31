@@ -43,6 +43,6 @@ All notable changes are documented here. Package releases use Semantic Versionin
 - M1 remains semantic transport rather than a component tree.
 - Raw unsigned M1 remains available for informational rendering but is not trusted invocation or navigation authority.
 
-## 1.0.0 - Unpublished
+## 0.1.0 - Unpublished
 
-The package version remains an unpublished repository placeholder. No npm publication or external adoption is claimed by this changelog.
+The package remains an unpublished incubation artifact. No npm publication or independent ecosystem adoption is claimed by this changelog.
