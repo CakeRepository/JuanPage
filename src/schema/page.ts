@@ -2,6 +2,25 @@ import { z } from "zod";
 import { DocumentValidationError } from "./errors.js";
 import { LIMITS } from "./limits.js";
 import { isAllowedUrl } from "./url.js";
+import {
+  pageScalarSchema,
+  pageValueSchema,
+  type PageScalar,
+  type PageValue,
+} from "./value.js";
+
+export {
+  pageScalarSchema,
+  pageValueSchema,
+  semanticValueSchema,
+  isSemanticValue,
+  formatSemanticValue,
+  matrixValue,
+  semanticValueTag,
+  type PageScalar,
+  type PageValue,
+  type SemanticValue,
+} from "./value.js";
 
 const text = (max: number = LIMITS.maxTextLength) => z.string().min(1).max(max);
 const optionalText = (max: number = LIMITS.maxTextLength) => z.string().max(max).optional();
@@ -11,14 +30,6 @@ const key = z.string().min(1).max(80).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/);
 const safeUrl = z.string().max(LIMITS.maxUrlLength).refine((value) => isAllowedUrl(value), {
   message: "URL must be https (or localhost during development)",
 });
-
-export const pageScalarSchema = z.union([
-  z.string().max(LIMITS.maxTextLength),
-  z.number().finite(),
-  z.boolean(),
-  z.null(),
-]);
-export const pageValueSchema = z.union([pageScalarSchema, z.array(pageScalarSchema).max(50)]);
 
 export const pageFieldSchema = z.object({
   key,
@@ -200,8 +211,6 @@ export const juanPageSchema = z.object({
   ),
 }).strict();
 
-export type PageScalar = z.infer<typeof pageScalarSchema>;
-export type PageValue = z.infer<typeof pageValueSchema>;
 export type PageField = z.infer<typeof pageFieldSchema>;
 export type PageObject = z.infer<typeof pageObjectSchema>;
 export type PageRelation = z.infer<typeof pageRelationSchema>;
