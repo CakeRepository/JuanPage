@@ -1,7 +1,7 @@
 {
   "name": "juanpager",
-  "version": "0.2.0",
-  "description": "JuanPager — serverless universal human-surface runtime for AI agents",
+  "version": "1.0.0",
+  "description": "JuanPager — one universal object-graph schema and one adaptive human interface runtime",
   "type": "module",
   "license": "MIT",
   "scripts": {
