@@ -14,7 +14,8 @@ describe("protocol bridges", () => {
       policy: "approval",
       timestamp: "2026-07-31T21:00:00.000Z",
     });
-    expect(result.page.version).toBe("1.0");
+    expect(result.page.version).toBe("2.0");
+    expect(result.page.affordances?.some((affordance) => affordance.id === "a:deploy")).toBe(true);
     expect(result.delta[4][0]?.[0]).toBe(31);
     expect(result.events.map((event) => event.type)).toEqual([
       "RUN_STARTED",
@@ -57,7 +58,7 @@ describe("protocol bridges", () => {
       decision: "approved",
       timestamp: "2026-07-31T21:00:10.000Z",
     });
-    expect(opened.page.version).toBe("1.0");
+    expect(opened.page.version).toBe("2.0");
     expect(response.structuredContent.protocol).toBe("m1");
     expect(response.structuredContent.delta[4][0]?.[0]).toBe(30);
   });
