@@ -12,11 +12,14 @@ import {
 import { validateMeaningPacket } from "../src/protocol/meaning.js";
 import { validatePage } from "../src/schema/page.js";
 
-const USAGE = `Usage: npm run encode -- <juanpage-or-m1.json> [--session] [--raw|--gz]\n\nAccepts JuanPage 1.0 or an M1 packet.\n--session creates a record-only round-trip URL for an M1 packet.\nBase URL: JUANPAGER_BASE_URL (alias ONEPAGER_BASE_URL).`;
+const USAGE = `Usage: npm run encode -- <juanpage-or-m1.json> [--session] [--raw|--gz]\n\nAccepts JuanPage 2.0 or an M1 packet.\n--session creates a record-only round-trip URL for an M1 packet.\nGenerated links use fragment version v=5.\nBase URL: JUANPAGER_BASE_URL (alias ONEPAGER_BASE_URL).`;
 
 async function main(): Promise<void> {
-  const path = process.argv.slice(2).find((arg) => !arg.startsWith("--"));
-  if (!path) { console.error(USAGE); process.exit(1); }
+  const path = process.argv.slice(2).find((argument) => !argument.startsWith("--"));
+  if (!path) {
+    console.error(USAGE);
+    process.exit(1);
+  }
   const encoding: PagePayloadEncoding = process.argv.includes("--raw") ? "raw" : "gz";
   const roundTrip = process.argv.includes("--session");
   const rawText = await readFile(resolve(path), "utf8");
@@ -32,9 +35,12 @@ async function main(): Promise<void> {
     : await buildPageShareUrl(validatePage(raw), base, encoding);
   const payload = new URL(url).hash.split("data=")[1] ?? "";
   const sizes = measurePageSizes(payload, rawText);
-  const label = m1 ? roundTrip ? "M1 URL session" : "M1 packet" : "JuanPage 1.0";
-  console.error(`${label} · ${encoding} · ${sizes.encodedBytes} encoded bytes · ${sizes.decodedBytes} source bytes`);
+  const label = m1 ? roundTrip ? "M1 URL session" : "M1 packet" : "JuanPage 2.0";
+  console.error(`${label} · v5 · ${encoding} · ${sizes.encodedBytes} encoded bytes · ${sizes.decodedBytes} source bytes`);
   console.log(url);
 }
 
-main().catch((error: unknown) => { console.error(error instanceof Error ? error.stack ?? error.message : error); process.exit(1); });
+main().catch((error: unknown) => {
+  console.error(error instanceof Error ? error.stack ?? error.message : error);
+  process.exit(1);
+});
