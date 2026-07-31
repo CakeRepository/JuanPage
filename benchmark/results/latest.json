@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-31T21:39:58Z",
+  "fixture": "pkt:deployment:reference",
+  "runs": 3,
+  "environment": {
+    "node": "v22.23.1",
+    "platform": "linux",
+    "architecture": "x64"
+  },
+  "sizes": {
+    "m1": { "rawBytes": 1950, "gzipBytes": 761, "approximateTokens": 488 },
+    "juanPage": { "rawBytes": 3045, "gzipBytes": 1075, "approximateTokens": 762 },
+    "componentTree": { "rawBytes": 1756, "gzipBytes": 552, "approximateTokens": 439 },
+    "naturalLanguage": { "rawBytes": 820, "gzipBytes": 402, "approximateTokens": 205 }
+  },
+  "timing": {
+    "validation": {
+      "m1": { "meanMs": 0.018191333333296218, "minMs": 0.012769999999932224, "maxMs": 0.02791300000001229 },
+      "juanPage": { "meanMs": 0.24441633333333357, "minMs": 0.21953199999995832, "maxMs": 0.2850310000000036 },
+      "componentTree": null,
+      "naturalLanguage": null
+    },
+    "materialization": { "meanMs": 0.356264666666713, "minMs": 0.33511600000008457, "maxMs": 0.3976300000000492 },
+    "rendering": { "meanMs": 29.552845666666673, "minMs": 9.207767999999987, "maxMs": 67.56061299999999 }
+  },
+  "conformance": {
+    "invalidCases": 3,
+    "invalidRejected": 3,
+    "deterministicCrossRun": true
+  },
+  "package": {
+    "dryRunTarballBytes": 46581,
+    "unpackedBytes": 241391,
+    "entryCount": 70,
+    "published": false
+  },
+  "limitations": [
+    "Natural-language token counts use a four-bytes-per-token approximation, not a model-specific tokenizer.",
+    "The component tree is a neutral equivalent representation, not an implementation of a named external framework.",
+    "Three timing runs are a CI smoke signal and are not a statistically strong performance claim.",
+    "M1 pays validation and materialization cost that direct JuanPage JSON does not.",
+    "M1 can be larger than terse natural-language instructions for very small pages and less convenient for manual authoring."
+  ]
+}
