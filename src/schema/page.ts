@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { DocumentValidationError } from "./document.js";
+import { DocumentValidationError } from "./errors.js";
 import { LIMITS } from "./limits.js";
 import { isAllowedUrl } from "./url.js";
 
