@@ -12,6 +12,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "lint": "eslint . --ext .ts,.js",
+    "check:one-runtime": "tsx scripts/enforce-one-runtime.ts",
     "encode": "tsx scripts/encode.ts",
     "decode": "tsx scripts/decode.ts"
   },
