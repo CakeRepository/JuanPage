@@ -1,0 +1,25 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "dist-sdk",
+    "rootDir": "src",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "types": []
+  },
+  "include": [
+    "src/index.ts",
+    "src/schema/page.ts",
+    "src/schema/errors.ts",
+    "src/schema/limits.ts",
+    "src/schema/url.ts",
+    "src/protocol/meaning.ts",
+    "src/encoding/base64url.ts",
+    "src/encoding/compress.ts",
+    "src/encoding/pagePipeline.ts",
+    "src/transport/adapters.ts",
+    "src/adapters/index.ts"
+  ]
+}
