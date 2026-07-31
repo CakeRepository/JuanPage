@@ -5,7 +5,7 @@ import {
   PagePayloadError,
   type PagePayloadEncoding,
 } from "./encoding/pagePipeline.js";
-import { futureMeaningPacket } from "./examples/meaning-workspace.js";
+import { operationsControlRoomPacket } from "./examples/operations-control-room.js";
 import {
   browserRendererCapabilities,
   createActionDelta,
@@ -130,8 +130,8 @@ async function bootstrap(): Promise<void> {
 
   const fragment = parseFragment(window.location.hash);
   if (!fragment.data) {
-    const page = materializeMeaningPacket(futureMeaningPacket, browserRendererCapabilities());
-    render(page, mount, () => buildMeaningShareUrl(futureMeaningPacket, appBaseUrl()));
+    const page = materializeMeaningPacket(operationsControlRoomPacket, browserRendererCapabilities());
+    render(page, mount, () => buildMeaningShareUrl(operationsControlRoomPacket, appBaseUrl()));
     return;
   }
 
