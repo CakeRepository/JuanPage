@@ -1,14 +1,25 @@
-import { clearFragment, docsUrl } from "./encoding/fragment.js";
+import { clearFragment, docsUrl, parseFragment } from "./encoding/fragment.js";
 import { encodeToFragment, PayloadLimitError } from "./encoding/pipeline.js";
 import { groceryCheckout } from "./examples/grocery-checkout.js";
+import { decodeMomentReceipt, stateFromReceipt } from "./protocol/receipt.js";
 import { renderDocument, renderError } from "./rendering/render.js";
 import { renderMomentWithReturn } from "./rendering/renderMomentWithReturn.js";
 import type { LoadedDocument } from "./schema/anyDocument.js";
 import { DocumentValidationError } from "./schema/document.js";
 import { FragmentDocumentSource } from "./sources/FragmentDocumentSource.js";
+import { momentStateKey, saveLocalState } from "./state/localState.js";
 
-function renderLoaded(loaded: LoadedDocument, mount: HTMLElement): void {
+function renderLoaded(loaded: LoadedDocument, mount: HTMLElement, hash: string): void {
   if (loaded.kind === "moment") {
+    const receiptToken = parseFragment(hash).receipt;
+    if (receiptToken) {
+      try {
+        const state = stateFromReceipt(loaded.document, decodeMomentReceipt(receiptToken));
+        saveLocalState(momentStateKey(loaded.document), state);
+      } catch (error) {
+        console.warn("Ignoring invalid JuanPager receipt overlay", error);
+      }
+    }
     renderMomentWithReturn(loaded.document, mount);
     return;
   }
@@ -18,7 +29,6 @@ function renderLoaded(loaded: LoadedDocument, mount: HTMLElement): void {
 async function loadDemo(): Promise<void> {
   const fragment = await encodeToFragment(groceryCheckout);
   window.location.hash = fragment.startsWith("#") ? fragment.slice(1) : fragment;
-  // hashchange will re-bootstrap; call directly for reliability
   await bootstrap();
 }
 
@@ -48,7 +58,7 @@ async function bootstrap(): Promise<void> {
 
   try {
     const source = new FragmentDocumentSource(hash);
-    renderLoaded(await source.load(), mount);
+    renderLoaded(await source.load(), mount, hash);
   } catch (error) {
     const title =
       error instanceof PayloadLimitError || error instanceof DocumentValidationError
