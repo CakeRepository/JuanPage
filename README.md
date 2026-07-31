@@ -1,85 +1,84 @@
 # JuanPager
 
-**One schema for everything. One UI for everything.**
+**One schema for everything. One UI for everything. Meaning moves without requiring human words.**
 
-JuanPager is a trusted runtime for the human side of agentic work. AI and humans describe a world as objects, fields, relationships, metrics, and actions. JuanPager renders that world as the interface a person needs right now.
+JuanPager is a trusted runtime for the human side of agentic work. Agents may send the canonical JuanPage 1.0 object graph directly, or send an **M1 meaning packet** made of numeric opcodes, opaque symbols, typed values, relationships, signals, evidence, permissions, and actions.
 
-The agent does not write HTML, CSS, components, pages, or layouts.
+M1 is not a second page schema or renderer. It compiles into JuanPage 1.0, then the existing universal runtime chooses the human projection.
 
 ```mermaid
 flowchart LR
-  A[AI or human] --> B[JuanPage object graph]
-  B --> C[URL fragment]
+  A[Agent latent state] --> B[M1 symbol packet]
+  B --> C[JuanPage 1.0 materializer]
   C --> D[Universal runtime]
-  D --> E[Canvas lens]
-  D --> F[Data lens]
-  D --> G[Flow lens]
-  E --> H[Human decisions]
+  D --> E[Canvas]
+  D --> F[Data]
+  D --> G[Flow]
+  E --> H[Human mutation]
   F --> H
   G --> H
+  H --> I[M1 revisioned delta]
 ```
+
+## M1 packet
+
+```json
+[
+  1,
+  "packet:release",
+  4,
+  "vocabulary:en",
+  [
+    ["t:title", "Launch control"],
+    ["type:release", "Release"],
+    ["p:approved", "Approved"]
+  ],
+  [
+    [0, [0, "t:title"], null, null, 2, 0, 0, 0],
+    [1, "entity:release", "type:release", [1, "JuanPage 1.0"], null, null, 1, null, ["action:approve"], []],
+    [2, "entity:release", "p:approved", false, [0, "p:approved"], 0, 1, null],
+    [4, "action:approve", 0, [1, "Approve"], "entity:release", "p:approved", false, 2, null, "act:approve"]
+  ]
+]
+```
+
+The tuple positions are the contract. English exists only in the optional vocabulary projection. Another locale, accessibility surface, voice interface, or agent can supply a different vocabulary while retaining the same symbols and facts.
+
+## Human-to-agent delta
+
+When a person changes a rendered field, JuanPager emits a `juanpager:delta` browser event:
+
+```json
+[
+  1,
+  "packet:release",
+  4,
+  5,
+  [[20, "entity:release", "p:approved", true]]
+]
+```
+
+The agent receives a typed state transition, not a sentence to reinterpret.
 
 ## JuanPage 1.0
 
-```json
-{
-  "version": "1.0",
-  "title": "Launch control",
-  "intent": "Decide what ships",
-  "objects": [
-    {
-      "id": "release",
-      "type": "release",
-      "name": "JuanPage 1.0",
-      "status": "Ready",
-      "fields": [
-        { "key": "risk", "value": "Low" },
-        { "key": "approved", "value": false }
-      ],
-      "actionIds": ["approve"]
-    }
-  ],
-  "actions": [
-    {
-      "id": "approve",
-      "kind": "toggle",
-      "label": "Approve",
-      "target": "release",
-      "field": "approved"
-    }
-  ]
-}
-```
-
-That same document can be viewed as:
-
-- **Canvas** — grouped, scannable human cards
-- **Data** — a dense table derived from object fields
-- **Flow** — lanes and relationships derived from the graph
-
-Selecting any object opens one universal inspector. Its actions are rendered from the same schema.
-
-## The universal contract
-
-A JuanPage contains:
+The canonical runtime still consumes one strict graph:
 
 - `objects`: arbitrary typed things with stable IDs and ordered fields
 - `relations`: directed connections between objects
-- `actions`: local human inputs such as toggle, number, choice, text, open, copy, and emit
+- `actions`: trusted local human inputs
 - `metrics`: count, sum, sum-product, progress, or fixed values
-- `view`: a starting lens, grouping rule, and density preference
+- `view`: starting lens, grouping, and density
 
-No entity catalog exists. A product, task, decision, endpoint, invoice, farm, person, model run, risk, or idea is simply an object.
+M1 signals, evidence, and permission policies are projected as ordinary objects so the renderer remains universal and inspectable.
 
 ## Share format
 
 ```text
-https://CakeRepository.github.io/juanpager/#v=3&enc=gz&data=ENCODED_JUANPAGE
+https://CakeRepository.github.io/juanpager/#v=3&enc=gz&data=ENCODED_PAYLOAD
 ```
 
-- `gz`: gzip-compressed JSON for compact links
-- `raw`: plain JSON encoded as Base64URL for inspection
-- content lives in the URL fragment and is rendered locally
+The v3 payload may contain either a canonical JuanPage or an M1 envelope. Both render locally through the same security boundary.
 
 ## Run
 
@@ -94,24 +93,11 @@ Viewer: `http://localhost:5173/juanpager/`
 
 Builder: `http://localhost:5173/juanpager/builder.html`
 
-Encode or decode:
-
-```bash
-npm run encode -- examples/one-schema.json
-npm run decode -- "https://example/#v=3&enc=gz&data=..."
-```
-
 ## Security
 
-JuanPager accepts data, validates it with Zod, and renders through trusted DOM APIs. It does not execute agent-authored HTML, JavaScript, CSS, scripts, iframes, or arbitrary network actions. URLs must use HTTPS, except localhost during development.
+JuanPager validates data and renders through trusted DOM APIs. It does not execute agent-authored HTML, JavaScript, CSS, scripts, iframes, or arbitrary network actions. URLs must use HTTPS, except localhost during development.
 
-Do not place secrets or sensitive records in share links. Fragments can appear in history, screenshots, bookmarks, and copied messages.
-
-## Deliberate break from pre-1.0
-
-The public viewer, builder, CLI, and share format now target one contract only: **JuanPage 1.0**.
-
-The old component-tree and moment implementations remain in repository history for reference, but the product no longer branches between them. The future surface is a graph, not a component catalog.
+Do not place secrets or sensitive records in share links. URL fragments can appear in history, screenshots, bookmarks, and copied messages.
 
 ## License
 
