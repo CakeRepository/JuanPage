@@ -8,6 +8,12 @@ export type PageState = {
   activeGroup?: string;
 };
 
+export type PageValueMutation = {
+  target: string;
+  field: string;
+  value: PageScalar;
+};
+
 const EMPTY_STATE: PageState = { values: {} };
 
 function hashText(text: string): string {
@@ -65,4 +71,9 @@ export function setPageValue(
   value: PageScalar,
 ): void {
   state.values[target] = { ...state.values[target], [field]: value };
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent<PageValueMutation>("juanpager:value", {
+      detail: { target, field, value },
+    }));
+  }
 }
