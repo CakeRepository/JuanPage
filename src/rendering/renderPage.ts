@@ -2,8 +2,6 @@ import { announce, append, el, externalLink, imageWithFallback } from "./dom.js"
 import { applyTheme, type RenderHandle } from "./render.js";
 import {
   humanizeKey,
-  objectField,
-  pageAffordance,
   pageObject,
   type JuanPageDocument,
   type PageAffordance,
@@ -45,6 +43,7 @@ export type UniversalRenderOptions = {
   onAffordance?: (invocation: PageAffordanceInvocation) => void | Promise<void>;
 };
 
+type BoundAffordance = Readonly<{ binding: PageBinding; affordance: PageAffordance }>;
 type ProjectionPoint = Readonly<{ id: string; key: PageScalar; label: string; value: number }>;
 
 function scalarText(value: unknown): string {
@@ -54,7 +53,11 @@ function scalarText(value: unknown): string {
   return String(value);
 }
 
-function formatNumber(value: number, format?: "auto" | "number" | "currency" | "percent", currency = "USD"): string {
+function formatNumber(
+  value: number,
+  format: "auto" | "number" | "currency" | "percent" | undefined,
+  currency = "USD",
+): string {
   if (format === "currency") return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(value);
   if (format === "percent") return `${Math.round(value * 100)}%`;
   return new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(value);
@@ -64,7 +67,10 @@ function formatValue(value: unknown, field?: PageField): string {
   if (value === null || value === undefined) return "—";
   if (Array.isArray(value)) return value.map(scalarText).join(" · ");
   if (typeof value === "number") {
-    return formatNumber(value, field?.format === "currency" || field?.format === "percent" || field?.format === "number" ? field.format : "auto", field?.currency);
+    const format = field?.format === "number" || field?.format === "currency" || field?.format === "percent"
+      ? field.format
+      : "auto";
+    return formatNumber(value, format, field?.currency);
   }
   if (field?.format === "date" || field?.format === "datetime") {
     const date = new Date(String(value));
@@ -91,7 +97,7 @@ function targetKey(target: PageBindingTarget): string {
   return `projection:${target.projection}`;
 }
 
-function valuesEqual(left: unknown, right: unknown): boolean {
+function sameValue(left: unknown, right: unknown): boolean {
   return left === right || String(left) === String(right);
 }
 
@@ -99,18 +105,18 @@ function objectMatchesScopes(
   object: PageObject,
   page: JuanPageDocument,
   state: PageState,
-  ignoreScopes: readonly string[] = [],
+  ignored: readonly string[] = [],
 ): boolean {
   for (const scope of page.scopes ?? []) {
-    if (ignoreScopes.includes(scope.id)) continue;
+    if (ignored.includes(scope.id)) continue;
     const active = state.scopes[scope.id];
     if (active === undefined || active === null) continue;
     if (scope.objectTypes?.length && !scope.objectTypes.includes(object.type)) continue;
     const value = objectValue(object, scope.field, state);
     if (value === undefined) continue;
     if (Array.isArray(value)) {
-      if (!value.some((item) => valuesEqual(item, active))) return false;
-    } else if (!valuesEqual(value, active)) return false;
+      if (!value.some((item) => sameValue(item, active))) return false;
+    } else if (!sameValue(value, active)) return false;
   }
   return true;
 }
@@ -118,18 +124,18 @@ function objectMatchesScopes(
 function scopedObjects(
   page: JuanPageDocument,
   state: PageState,
-  ignoreScopes: readonly string[] = [],
+  ignored: readonly string[] = [],
 ): PageObject[] {
-  return page.objects.filter((object) => objectMatchesScopes(object, page, state, ignoreScopes));
+  return page.objects.filter((object) => objectMatchesScopes(object, page, state, ignored));
 }
 
-function matchesFilter(object: PageObject, metric: PageMetric, state: PageState): boolean {
+function matchesMetricFilter(object: PageObject, metric: PageMetric, state: PageState): boolean {
   if (!("filter" in metric) || !metric.filter) return true;
-  return valuesEqual(objectValue(object, metric.filter.field, state), metric.filter.equals);
+  return sameValue(objectValue(object, metric.filter.field, state), metric.filter.equals);
 }
 
-function metricRawValue(metric: PageMetric, page: JuanPageDocument, state: PageState): PageScalar {
-  const objects = scopedObjects(page, state, metric.ignoreScopes).filter((object) => matchesFilter(object, metric, state));
+function metricValue(metric: PageMetric, page: JuanPageDocument, state: PageState): PageScalar {
+  const objects = scopedObjects(page, state, metric.ignoreScopes).filter((object) => matchesMetricFilter(object, metric, state));
   if (metric.operation === "value") return metric.value;
   if (metric.operation === "count") return objects.length;
   if (metric.operation === "sum") {
@@ -145,12 +151,12 @@ function metricRawValue(metric: PageMetric, page: JuanPageDocument, state: PageS
       return total + (typeof left === "number" ? left : 0) * (typeof right === "number" ? right : 0);
     }, 0);
   }
-  const done = objects.filter((object) => Boolean(objectValue(object, metric.field, state))).length;
-  return objects.length ? done / objects.length : 0;
+  const completed = objects.filter((object) => Boolean(objectValue(object, metric.field, state))).length;
+  return objects.length ? completed / objects.length : 0;
 }
 
 function metricText(metric: PageMetric, page: JuanPageDocument, state: PageState): string {
-  const value = metricRawValue(metric, page, state);
+  const value = metricValue(metric, page, state);
   return typeof value === "number" ? formatNumber(value, metric.format, metric.currency) : scalarText(value);
 }
 
@@ -163,25 +169,27 @@ function projectionPoints(projection: PageProjection, page: JuanPageDocument, st
   for (const object of source) {
     const dimension = objectValue(object, projection.dimension, state);
     if (dimension === undefined || dimension === null || Array.isArray(dimension)) continue;
-    const bucketKey = JSON.stringify(dimension);
-    const bucket = buckets.get(bucketKey) ?? { key: dimension as PageScalar, total: 0, count: 0 };
+    const bucketId = JSON.stringify(dimension);
+    const bucket = buckets.get(bucketId) ?? { key: dimension as PageScalar, total: 0, count: 0 };
     bucket.count += 1;
     if (projection.operation !== "count") {
       const measure = objectValue(object, projection.measure, state);
       if (typeof measure === "number") bucket.total += measure;
     }
-    buckets.set(bucketKey, bucket);
+    buckets.set(bucketId, bucket);
   }
   let points = [...buckets.values()].map((bucket) => ({
     id: scalarText(bucket.key),
     key: bucket.key,
     label: scalarText(bucket.key),
-    value: projection.operation === "count" ? bucket.count : projection.operation === "average" ? (bucket.count ? bucket.total / bucket.count : 0) : bucket.total,
+    value: projection.operation === "count"
+      ? bucket.count
+      : projection.operation === "average"
+        ? (bucket.count ? bucket.total / bucket.count : 0)
+        : bucket.total,
   }));
-  points.sort((left, right) => {
-    const order = projection.order === "desc" ? -1 : 1;
-    return left.label.localeCompare(right.label, undefined, { numeric: true }) * order;
-  });
+  const direction = projection.order === "desc" ? -1 : 1;
+  points.sort((left, right) => left.label.localeCompare(right.label, undefined, { numeric: true }) * direction);
   if (projection.limit) points = points.slice(0, projection.limit);
   return points;
 }
@@ -206,34 +214,48 @@ function copyObject(object: PageObject, state: PageState): string {
   return lines.filter(Boolean).join("\n");
 }
 
-export function renderPage(page: JuanPageDocument, mount: HTMLElement, options: UniversalRenderOptions = {}): RenderHandle {
+function bindingObjectId(target: PageBindingTarget): string | undefined {
+  return target.kind === "object" || target.kind === "field" ? target.object : undefined;
+}
+
+export function renderPage(
+  page: JuanPageDocument,
+  mount: HTMLElement,
+  options: UniversalRenderOptions = {},
+): RenderHandle {
   applyTheme(page.theme);
   document.title = `${page.title} · JuanPager`;
-  const key = pageStateKey(page);
-  const state = loadPageState(key, page);
-  const affordanceMap = new Map((page.affordances ?? []).map((affordance) => [affordance.id, affordance]));
-  const bindingsByTarget = new Map<string, PageBinding[]>();
+  const storageKey = pageStateKey(page);
+  const state = loadPageState(storageKey, page);
+  const affordances = new Map((page.affordances ?? []).map((affordance) => [affordance.id, affordance]));
+  const bindings = new Map<string, PageBinding[]>();
   for (const binding of page.bindings ?? []) {
-    const bindingKey = targetKey(binding.target);
-    bindingsByTarget.set(bindingKey, [...(bindingsByTarget.get(bindingKey) ?? []), binding]);
+    const key = targetKey(binding.target);
+    bindings.set(key, [...(bindings.get(key) ?? []), binding]);
   }
   let query = "";
 
-  const persist = (): void => savePageState(key, state);
-  const bindingsFor = (target: PageBindingTarget): PageBinding[] => bindingsByTarget.get(targetKey(target)) ?? [];
-  const resolvedBindings = (target: PageBindingTarget): Array<{ binding: PageBinding; affordance: PageAffordance }> =>
-    bindingsFor(target)
-      .map((binding) => ({ binding, affordance: affordanceMap.get(binding.affordance) }))
-      .filter((entry): entry is { binding: PageBinding; affordance: PageAffordance } => Boolean(entry.affordance));
+  const persist = (): void => savePageState(storageKey, state);
+  const bound = (target: PageBindingTarget): BoundAffordance[] => {
+    const result: BoundAffordance[] = [];
+    for (const binding of bindings.get(targetKey(target)) ?? []) {
+      const affordance = affordances.get(binding.affordance);
+      if (affordance) result.push({ binding, affordance });
+    }
+    return result;
+  };
 
-  const notify = async (affordance: PageAffordance, binding: PageBinding, value?: PageScalar): Promise<void> => {
+  const notify = async (
+    affordance: PageAffordance,
+    binding: PageBinding,
+    value?: PageScalar,
+  ): Promise<void> => {
     if (!options.onAffordance) return;
-    const objectId = binding.target.kind === "object" || binding.target.kind === "field" ? binding.target.object : undefined;
     await options.onAffordance({
       affordanceId: affordance.id,
       effect: affordance.effect.kind,
       target: binding.target,
-      objectId,
+      objectId: bindingObjectId(binding.target),
       value,
       operation: affordance.effect.kind === "invoke" ? affordance.effect.operation : undefined,
       values: state.values,
@@ -246,7 +268,7 @@ export function renderPage(page: JuanPageDocument, mount: HTMLElement, options: 
     if (affordance.effect.kind !== "copy") return "";
     if (affordance.effect.source === "page") return JSON.stringify(page, null, 2);
     if (affordance.effect.source === "url") return affordance.effect.url ?? window.location.href;
-    const objectId = binding.target.kind === "object" || binding.target.kind === "field" ? binding.target.object : undefined;
+    const objectId = bindingObjectId(binding.target);
     const object = objectId ? pageObject(page, objectId) : undefined;
     if (affordance.effect.source === "object" && object) return copyObject(object, state);
     if (affordance.effect.source === "field" && object && affordance.effect.field) {
@@ -270,7 +292,7 @@ export function renderPage(page: JuanPageDocument, mount: HTMLElement, options: 
       return;
     }
     if (effect.kind === "set") {
-      const objectId = binding.target.kind === "object" || binding.target.kind === "field" ? binding.target.object : undefined;
+      const objectId = bindingObjectId(binding.target);
       if (!objectId || value === undefined) return;
       setPageValue(state, objectId, effect.field, value);
       persist();
@@ -278,21 +300,21 @@ export function renderPage(page: JuanPageDocument, mount: HTMLElement, options: 
       return;
     }
     if (effect.kind === "scope") {
-      const next = value ?? binding.value ?? null;
-      setPageScope(state, effect.scope, next);
+      setPageScope(state, effect.scope, value ?? binding.value ?? null);
       persist();
       draw();
       return;
     }
     if (effect.kind === "select") {
-      const candidate = binding.value ?? value
-        ?? (binding.target.kind === "object" || binding.target.kind === "field" ? binding.target.object : null);
-      if (candidate === null || candidate === undefined) return;
-      const idValue = String(candidate);
+      const candidate = value ?? binding.value ?? bindingObjectId(binding.target);
+      if (candidate === undefined || candidate === null) return;
+      const item = String(candidate);
       const current = state.selections[effect.selection] ?? [];
       const next = effect.mode === "single"
-        ? (current.includes(idValue) ? [] : [idValue])
-        : current.includes(idValue) ? current.filter((item) => item !== idValue) : [...current, idValue];
+        ? (current.includes(item) ? [] : [item])
+        : current.includes(item)
+          ? current.filter((valueId) => valueId !== item)
+          : [...current, item];
       setPageSelection(state, effect.selection, next);
       persist();
       draw();
@@ -315,118 +337,114 @@ export function renderPage(page: JuanPageDocument, mount: HTMLElement, options: 
 
   const currentInputValue = (affordance: PageAffordance, binding: PageBinding): PageScalar | undefined => {
     if (affordance.effect.kind === "scope") return state.scopes[affordance.effect.scope];
-    if (affordance.effect.kind === "set") {
-      const objectId = binding.target.kind === "object" || binding.target.kind === "field" ? binding.target.object : undefined;
-      const object = objectId ? pageObject(page, objectId) : undefined;
-      return object ? effectiveFieldValue(object, affordance.effect.field, state) as PageScalar | undefined : undefined;
-    }
-    return binding.value;
+    if (affordance.effect.kind !== "set") return binding.value;
+    const objectId = bindingObjectId(binding.target);
+    const object = objectId ? pageObject(page, objectId) : undefined;
+    return object ? effectiveFieldValue(object, affordance.effect.field, state) as PageScalar | undefined : undefined;
   };
 
-  const control = (binding: PageBinding, compact = false): HTMLElement => {
-    const affordance = affordanceMap.get(binding.affordance);
-    const host = el("div", { className: `jp-u-affordance${compact ? " is-compact" : ""}`, attrs: { "data-affordance-id": binding.affordance } });
-    if (!affordance) return host;
-    const fixed = binding.value;
-    const input = affordance.input;
-    const label = affordance.label;
-
+  const control = (entry: BoundAffordance, compact = false): HTMLElement => {
+    const { binding, affordance } = entry;
+    const host = el("div", {
+      className: `jp-u-affordance${compact ? " is-compact" : ""}`,
+      attrs: { "data-affordance-id": affordance.id },
+    });
     if (affordance.effect.kind === "navigate") {
-      const link = externalLink(affordance.effect.url, label, `jp-u-button jp-u-${affordance.tone ?? "neutral"}`);
+      const link = externalLink(affordance.effect.url, affordance.label, `jp-u-button jp-u-${affordance.tone ?? "neutral"}`);
       link.setAttribute("data-affordance-id", affordance.id);
-      link.addEventListener("click", () => { void notify(affordance, binding, fixed); });
+      link.addEventListener("click", () => { void notify(affordance, binding, binding.value); });
       return link;
     }
 
-    if (fixed !== undefined || input.kind === "none") {
-      const selected = affordance.effect.kind === "select"
-        ? (state.selections[affordance.effect.selection] ?? []).includes(String(fixed ?? (binding.target.kind === "object" ? binding.target.object : "")))
-        : false;
+    if (binding.value !== undefined || affordance.input.kind === "none") {
+      const selection = affordance.effect.kind === "select" ? state.selections[affordance.effect.selection] ?? [] : [];
+      const candidate = binding.value ?? bindingObjectId(binding.target) ?? "";
+      const selected = selection.includes(String(candidate));
       const button = el("button", {
         className: `jp-u-button jp-u-${affordance.tone ?? "neutral"}${selected ? " is-active" : ""}`,
-        text: fixed !== undefined && input.kind === "choice"
-          ? input.options.find((option) => valuesEqual(option.value, fixed))?.label ?? label
-          : label,
+        text: affordance.label,
         attrs: {
           type: "button",
-          "data-affordance-id": affordance.id,
           "aria-pressed": affordance.effect.kind === "select" ? selected : undefined,
         },
       });
-      button.addEventListener("click", () => { void run(affordance, binding, fixed, host); });
+      button.addEventListener("click", () => { void run(affordance, binding, binding.value, host); });
       append(host, button);
       return host;
     }
 
-    const fieldLabel = el("label", { className: "jp-u-affordance-label" });
-    append(fieldLabel, el("span", { text: label }));
+    const label = el("label", { className: "jp-u-affordance-label" });
+    append(label, el("span", { text: affordance.label }));
     const current = currentInputValue(affordance, binding);
 
-    if (input.kind === "boolean") {
-      const checkbox = el("input", { attrs: { type: "checkbox", "data-affordance-id": affordance.id } }) as HTMLInputElement;
-      checkbox.checked = Boolean(current);
-      checkbox.addEventListener("change", () => { void run(affordance, binding, checkbox.checked, host); });
-      fieldLabel.classList.add("is-toggle");
-      append(fieldLabel, checkbox);
+    if (affordance.input.kind === "boolean") {
+      const input = el("input", { attrs: { type: "checkbox", "data-affordance-id": affordance.id } }) as HTMLInputElement;
+      input.checked = Boolean(current);
+      input.addEventListener("change", () => { void run(affordance, binding, input.checked, host); });
+      label.classList.add("is-toggle");
+      append(label, input);
     }
 
-    if (input.kind === "number") {
-      const number = el("input", {
+    if (affordance.input.kind === "number") {
+      const input = el("input", {
         attrs: {
-          type: input.presentation === "adjust" ? "range" : "number",
-          value: typeof current === "number" ? current : input.min ?? 0,
-          min: input.min,
-          max: input.max,
-          step: input.step ?? 1,
+          type: affordance.input.presentation === "adjust" ? "range" : "number",
+          value: typeof current === "number" ? current : affordance.input.min ?? 0,
+          min: affordance.input.min,
+          max: affordance.input.max,
+          step: affordance.input.step ?? 1,
           "data-affordance-id": affordance.id,
         },
       }) as HTMLInputElement;
-      const output = input.presentation === "adjust" ? el("output", { className: "jp-u-range-value", text: number.value }) : undefined;
-      number.addEventListener("input", () => { if (output) output.textContent = number.value; });
-      number.addEventListener("change", () => { void run(affordance, binding, Number(number.value), host); });
-      append(fieldLabel, number, output);
+      const output = affordance.input.presentation === "adjust"
+        ? el("output", { className: "jp-u-range-value", text: input.value })
+        : undefined;
+      input.addEventListener("input", () => { if (output) output.textContent = input.value; });
+      input.addEventListener("change", () => { void run(affordance, binding, Number(input.value), host); });
+      append(label, input, output);
     }
 
-    if (input.kind === "choice") {
+    if (affordance.input.kind === "choice") {
       const select = el("select", { attrs: { "data-affordance-id": affordance.id } }) as HTMLSelectElement;
-      input.options.forEach((option, index) => append(select, el("option", { text: option.label, attrs: { value: String(index) } })));
-      const selectedIndex = input.options.findIndex((option) => valuesEqual(option.value, current));
+      affordance.input.options.forEach((option, index) => {
+        append(select, el("option", { text: option.label, attrs: { value: index } }));
+      });
+      const selectedIndex = affordance.input.options.findIndex((option) => sameValue(option.value, current));
       select.value = String(selectedIndex >= 0 ? selectedIndex : 0);
       select.addEventListener("change", () => {
-        const option = input.options[Number(select.value)];
+        const option = affordance.input.kind === "choice" ? affordance.input.options[Number(select.value)] : undefined;
         if (option) void run(affordance, binding, option.value, host);
       });
-      append(fieldLabel, select);
+      append(label, select);
     }
 
-    if (input.kind === "text") {
-      const textInput = input.multiline
-        ? el("textarea", { attrs: { placeholder: input.placeholder ?? "", "data-affordance-id": affordance.id } }) as HTMLTextAreaElement
-        : el("input", { attrs: { type: "text", placeholder: input.placeholder ?? "", "data-affordance-id": affordance.id } }) as HTMLInputElement;
-      textInput.value = typeof current === "string" ? current : "";
-      textInput.addEventListener("change", () => { void run(affordance, binding, textInput.value, host); });
-      append(fieldLabel, textInput);
+    if (affordance.input.kind === "text") {
+      const input = affordance.input.multiline
+        ? el("textarea", { attrs: { placeholder: affordance.input.placeholder ?? "", "data-affordance-id": affordance.id } }) as HTMLTextAreaElement
+        : el("input", { attrs: { type: "text", placeholder: affordance.input.placeholder ?? "", "data-affordance-id": affordance.id } }) as HTMLInputElement;
+      input.value = typeof current === "string" ? current : "";
+      input.addEventListener("change", () => { void run(affordance, binding, input.value, host); });
+      append(label, input);
     }
 
-    append(host, fieldLabel);
+    append(host, label);
     return host;
   };
 
   const visibleObjects = (): PageObject[] => scopedObjects(page, state).filter((object) => {
-    const groupMatch = !state.activeGroup || state.activeGroup === "all" || (object.group ?? "Other") === state.activeGroup;
-    return groupMatch && (!query || objectText(object, state).includes(query));
+    const groupVisible = !state.activeGroup || state.activeGroup === "all" || (object.group ?? "Other") === state.activeGroup;
+    return groupVisible && (!query || objectText(object, state).includes(query));
   });
 
   const card = (object: PageObject): HTMLElement => {
-    const objectTarget: PageBindingTarget = { kind: "object", object: object.id };
-    const objectBindings = resolvedBindings(objectTarget);
-    const inspect = objectBindings.find((entry) => entry.affordance.effect.kind === "inspect");
-    const selected = [...Object.values(state.selections)].some((values) => values.includes(object.id));
+    const objectEntries = bound({ kind: "object", object: object.id });
+    const inspect = objectEntries.find((entry) => entry.affordance.effect.kind === "inspect");
+    const selected = Object.values(state.selections).some((selection) => selection.includes(object.id));
     const article = el("article", {
       className: `jp-u-card jp-u-tone-${object.tone ?? "neutral"}${inspect ? " is-interactive" : ""}${selected ? " is-selected" : ""}`,
       attrs: {
         "data-object-id": object.id,
-        tabindex: inspect ? "0" : undefined,
+        tabindex: inspect ? 0 : undefined,
         role: inspect ? "button" : undefined,
         "aria-label": inspect ? `Inspect ${object.name}` : undefined,
       },
@@ -440,23 +458,24 @@ export function renderPage(page: JuanPageDocument, mount: HTMLElement, options: 
 
     const prominent = (object.fields ?? []).filter((field) => field.display === "prominent");
     if (prominent.length) {
-      const values = el("div", { className: "jp-u-prominent" });
-      for (const field of prominent) append(values, el("div", { text: formatValue(objectValue(object, field.key, state), field) }));
-      append(article, values);
+      const row = el("div", { className: "jp-u-prominent" });
+      for (const field of prominent) append(row, el("div", { text: formatValue(objectValue(object, field.key, state), field) }));
+      append(article, row);
     }
 
     const inline = el("div", { className: "jp-u-inline-affordances" });
     for (const field of object.fields ?? []) {
-      const target: PageBindingTarget = { kind: "field", object: object.id, field: field.key };
-      for (const { binding, affordance } of resolvedBindings(target)) {
-        if (affordance.effect.kind !== "inspect") append(inline, control(binding, true));
+      for (const entry of bound({ kind: "field", object: object.id, field: field.key })) {
+        if (entry.affordance.effect.kind !== "inspect") append(inline, control(entry, true));
       }
     }
     if (inline.childElementCount) append(article, inline);
 
     const actions = el("div", { className: "jp-u-card-actions" });
-    for (const { binding, affordance } of objectBindings) {
-      if (affordance.effect.kind !== "inspect" && affordance.effect.kind !== "set") append(actions, control(binding, true));
+    for (const entry of objectEntries) {
+      if (entry.affordance.effect.kind !== "inspect" && entry.affordance.effect.kind !== "set") {
+        append(actions, control(entry, true));
+      }
     }
     if (actions.childElementCount) append(article, actions);
 
@@ -476,66 +495,89 @@ export function renderPage(page: JuanPageDocument, mount: HTMLElement, options: 
   };
 
   const projectionView = (projection: PageProjection): HTMLElement => {
-    const section = el("section", { className: "jp-u-projection", attrs: { "data-projection-id": projection.id } });
+    const section = el("section", {
+      className: "jp-u-projection",
+      attrs: { "data-projection-id": projection.id },
+    });
     append(section, el("h2", { text: projection.label }));
     if (projection.description) append(section, el("p", { className: "jp-u-summary", text: projection.description }));
     const points = projectionPoints(projection, page, state);
     const max = Math.max(1, ...points.map((point) => Math.abs(point.value)));
-    const projectionBindings = resolvedBindings({ kind: "projection", projection: projection.id });
-    const primary = projectionBindings.find((entry) => entry.binding.priority === "primary") ?? projectionBindings[0];
+    const entries = bound({ kind: "projection", projection: projection.id });
+    const primary = entries.find((entry) => entry.binding.priority === "primary") ?? entries[0];
     const list = el("div", { className: "jp-u-projection-points" });
+
     for (const point of points) {
       const content = el("span", { className: "jp-u-projection-point-content" });
+      const track = el("span", { className: "jp-u-projection-track" });
+      append(track, el("span", {
+        className: "jp-u-projection-bar",
+        attrs: { style: `width:${Math.max(2, Math.abs(point.value) / max * 100)}%` },
+      }));
       append(
         content,
         el("span", { className: "jp-u-projection-label", text: point.label }),
-        el("span", { className: "jp-u-projection-track" }),
+        track,
         el("strong", { text: formatNumber(point.value, projection.format, projection.currency) }),
       );
-      const track = content.querySelector(".jp-u-projection-track") as HTMLElement;
-      append(track, el("span", { className: "jp-u-projection-bar", attrs: { style: `width:${Math.max(2, Math.abs(point.value) / max * 100)}%` } }));
-      if (primary) {
-        const selected = primary.affordance.effect.kind === "scope"
-          ? valuesEqual(state.scopes[primary.affordance.effect.scope], point.key)
-          : primary.affordance.effect.kind === "select"
-            ? (state.selections[primary.affordance.effect.selection] ?? []).includes(point.id)
-            : false;
-        const button = el("button", {
-          className: `jp-u-projection-point${selected ? " is-active" : ""}`,
-          attrs: {
-            type: "button",
-            "data-affordance-id": primary.affordance.id,
-            "data-datum-id": point.id,
-            "aria-pressed": primary.affordance.effect.kind === "scope" || primary.affordance.effect.kind === "select" ? selected : undefined,
-          },
-        });
-        append(button, content);
-        button.addEventListener("click", () => { void run(primary.affordance, primary.binding, primary.affordance.effect.kind === "select" ? point.id : point.key, section); });
-        append(list, button);
-      } else {
+
+      if (!primary) {
         const row = el("div", { className: "jp-u-projection-point is-display" });
         append(row, content);
         append(list, row);
+        continue;
       }
+
+      const active = primary.affordance.effect.kind === "scope"
+        ? sameValue(state.scopes[primary.affordance.effect.scope], point.key)
+        : primary.affordance.effect.kind === "select"
+          ? (state.selections[primary.affordance.effect.selection] ?? []).includes(point.id)
+          : false;
+      const button = el("button", {
+        className: `jp-u-projection-point${active ? " is-active" : ""}`,
+        attrs: {
+          type: "button",
+          "data-affordance-id": primary.affordance.id,
+          "data-datum-id": point.id,
+          "aria-pressed": primary.affordance.effect.kind === "scope" || primary.affordance.effect.kind === "select" ? active : undefined,
+        },
+      });
+      append(button, content);
+      button.addEventListener("click", () => {
+        void run(
+          primary.affordance,
+          primary.binding,
+          primary.affordance.effect.kind === "select" ? point.id : point.key,
+          section,
+        );
+      });
+      append(list, button);
     }
+
     if (!points.length) append(list, el("p", { className: "jp-u-empty", text: "No data in the current scope." }));
     append(section, list);
     return section;
   };
 
   const metricView = (metric: PageMetric): HTMLElement => {
-    const target: PageBindingTarget = { kind: "metric", metric: metric.id };
-    const binding = resolvedBindings(target)[0];
+    const entry = bound({ kind: "metric", metric: metric.id })[0];
     const content = el("span", { className: "jp-u-metric-content" });
     append(content, el("strong", { text: metricText(metric, page, state) }), el("span", { text: metric.label }));
-    if (!binding) {
+    if (!entry) {
       const item = el("div", { className: "jp-u-metric", attrs: { "data-metric-id": metric.id } });
       append(item, content);
       return item;
     }
-    const button = el("button", { className: "jp-u-metric is-interactive", attrs: { type: "button", "data-metric-id": metric.id, "data-affordance-id": binding.affordance.id } });
+    const button = el("button", {
+      className: "jp-u-metric is-interactive",
+      attrs: {
+        type: "button",
+        "data-metric-id": metric.id,
+        "data-affordance-id": entry.affordance.id,
+      },
+    });
     append(button, content);
-    button.addEventListener("click", () => { void run(binding.affordance, binding.binding, binding.binding.value, button); });
+    button.addEventListener("click", () => { void run(entry.affordance, entry.binding, entry.binding.value, button); });
     return button;
   };
 
@@ -557,38 +599,47 @@ export function renderPage(page: JuanPageDocument, mount: HTMLElement, options: 
         if (object.summary) append(panel, el("p", { className: "jp-u-summary", text: object.summary }));
         const details = el("dl", { className: "jp-u-details" });
         for (const field of object.fields ?? []) {
-          if (field.display !== "hidden") {
-            const focused = target.kind === "field" && target.field === field.key;
-            append(details, el("dt", { className: focused ? "is-focused" : undefined, text: field.label ?? humanizeKey(field.key) }), el("dd", { className: focused ? "is-focused" : undefined, text: formatValue(objectValue(object, field.key, state), field) }));
-          }
+          if (field.display === "hidden") continue;
+          const focused = target.kind === "field" && target.field === field.key;
+          append(
+            details,
+            el("dt", { className: focused ? "is-focused" : undefined, text: field.label ?? humanizeKey(field.key) }),
+            el("dd", { className: focused ? "is-focused" : undefined, text: formatValue(objectValue(object, field.key, state), field) }),
+          );
         }
         append(panel, details);
         const controls = el("div", { className: "jp-u-actions" });
-        for (const { binding, affordance } of resolvedBindings({ kind: "object", object: object.id })) if (affordance.effect.kind !== "inspect") append(controls, control(binding));
+        for (const entry of bound({ kind: "object", object: object.id })) {
+          if (entry.affordance.effect.kind !== "inspect") append(controls, control(entry));
+        }
         for (const field of object.fields ?? []) {
-          for (const { binding, affordance } of resolvedBindings({ kind: "field", object: object.id, field: field.key })) if (affordance.effect.kind !== "inspect") append(controls, control(binding));
+          for (const entry of bound({ kind: "field", object: object.id, field: field.key })) {
+            if (entry.affordance.effect.kind !== "inspect") append(controls, control(entry));
+          }
         }
         if (controls.childElementCount) append(panel, controls);
       }
     }
 
     if (target.kind === "metric") {
-      const metric = page.metrics?.find((item) => item.id === target.metric);
+      const metric = page.metrics?.find((candidate) => candidate.id === target.metric);
       if (metric) append(panel, el("p", { className: "jp-u-type", text: "Metric" }), el("h2", { text: metric.label }), el("p", { className: "jp-u-inspector-value", text: metricText(metric, page, state) }));
     }
 
     if (target.kind === "projection") {
-      const projection = page.projections?.find((item) => item.id === target.projection);
+      const projection = page.projections?.find((candidate) => candidate.id === target.projection);
       if (projection) {
         append(panel, el("p", { className: "jp-u-type", text: "Projection" }), el("h2", { text: projection.label }));
-        const list = el("dl", { className: "jp-u-details" });
-        for (const point of projectionPoints(projection, page, state)) append(list, el("dt", { text: point.label }), el("dd", { text: formatNumber(point.value, projection.format, projection.currency) }));
-        append(panel, list);
+        const details = el("dl", { className: "jp-u-details" });
+        for (const point of projectionPoints(projection, page, state)) {
+          append(details, el("dt", { text: point.label }), el("dd", { text: formatNumber(point.value, projection.format, projection.currency) }));
+        }
+        append(panel, details);
       }
     }
 
     if (target.kind === "relation") {
-      const relation = page.relations?.find((item) => item.id === target.relation);
+      const relation = page.relations?.find((candidate) => candidate.id === target.relation);
       if (relation) {
         append(
           panel,
@@ -610,11 +661,17 @@ export function renderPage(page: JuanPageDocument, mount: HTMLElement, options: 
     const utility = el("div", { className: "jp-u-utility" });
     if (options.builderHref) append(utility, el("a", { className: "jp-u-button is-quiet", text: "Build", attrs: { href: options.builderHref } }));
     const share = el("button", { className: "jp-u-button jp-u-primary", text: "Share", attrs: { type: "button" } });
-    share.addEventListener("click", () => { void (async () => { const url = options.onShare ? await options.onShare() : window.location.href; await navigator.clipboard.writeText(url); announce(header, "Share link copied"); })(); });
+    share.addEventListener("click", () => {
+      void (async () => {
+        const url = options.onShare ? await options.onShare() : window.location.href;
+        await navigator.clipboard.writeText(url);
+        announce(header, "Share link copied");
+      })();
+    });
     const reset = el("button", { className: "jp-u-button is-quiet", text: "Reset", attrs: { type: "button" } });
     reset.addEventListener("click", () => {
-      resetPageState(key);
-      const fresh = loadPageState(key, page);
+      resetPageState(storageKey);
+      const fresh = loadPageState(storageKey, page);
       state.values = fresh.values;
       state.scopes = fresh.scopes;
       state.selections = fresh.selections;
@@ -635,24 +692,28 @@ export function renderPage(page: JuanPageDocument, mount: HTMLElement, options: 
     }
 
     const controls = el("div", { className: "jp-u-controls" });
-    for (const { binding } of resolvedBindings({ kind: "page" })) append(controls, control(binding));
+    for (const entry of bound({ kind: "page" })) append(controls, control(entry));
     if (page.objects.length > 6) {
       const search = el("input", { attrs: { type: "search", placeholder: "Search", value: query, "aria-label": "Search objects" } }) as HTMLInputElement;
       search.addEventListener("change", () => { query = search.value.trim().toLowerCase(); draw(); });
       append(controls, search);
     }
-    const groups = [...new Set(scopedObjects(page, state).map((object) => object.group ?? "Other"))];
-    if (groups.length > 1) {
+    const groupNames = [...new Set(scopedObjects(page, state).map((object) => object.group ?? "Other"))];
+    if (groupNames.length > 1) {
       const select = el("select", { attrs: { "aria-label": "Filter group" } }) as HTMLSelectElement;
       append(select, el("option", { text: "All groups", attrs: { value: "all" } }));
-      for (const group of groups) append(select, el("option", { text: group, attrs: { value: group } }));
+      for (const group of groupNames) append(select, el("option", { text: group, attrs: { value: group } }));
       select.value = state.activeGroup ?? "all";
       select.addEventListener("change", () => { state.activeGroup = select.value; persist(); draw(); });
       append(controls, select);
     }
     for (const [scopeId, value] of Object.entries(state.scopes)) {
-      if (value === null || value === undefined) continue;
-      const chip = el("button", { className: "jp-u-scope-chip", text: `${humanizeKey(scopeId)}: ${scalarText(value)} ×`, attrs: { type: "button", title: "Clear scope" } });
+      if (value === undefined || value === null) continue;
+      const chip = el("button", {
+        className: "jp-u-scope-chip",
+        text: `${humanizeKey(scopeId)}: ${scalarText(value)} ×`,
+        attrs: { type: "button", title: "Clear scope" },
+      });
       chip.addEventListener("click", () => { setPageScope(state, scopeId, null); persist(); draw(); });
       append(controls, chip);
     }
@@ -673,7 +734,7 @@ export function renderPage(page: JuanPageDocument, mount: HTMLElement, options: 
         const group = object.group ?? "Other";
         buckets.set(group, [...(buckets.get(group) ?? []), object]);
       }
-      const groupsRoot = el("div", { className: "jp-u-groups" });
+      const groupRoot = el("div", { className: "jp-u-groups" });
       for (const [name, items] of buckets) {
         const section = el("section", { className: "jp-u-group" });
         const title = el("div", { className: "jp-u-group-title" });
@@ -681,17 +742,16 @@ export function renderPage(page: JuanPageDocument, mount: HTMLElement, options: 
         const grid = el("div", { className: "jp-u-grid" });
         for (const object of items) append(grid, card(object));
         append(section, title, grid);
-        append(groupsRoot, section);
+        append(groupRoot, section);
       }
-      append(workspace, groupsRoot);
+      append(workspace, groupRoot);
     }
 
     if (page.relations?.length) {
       const relations = el("section", { className: "jp-u-relations" });
       append(relations, el("h2", { text: "Relationships" }));
       for (const relation of page.relations) {
-        const target: PageBindingTarget = { kind: "relation", relation: relation.id };
-        const inspect = resolvedBindings(target).find((entry) => entry.affordance.effect.kind === "inspect");
+        const inspect = bound({ kind: "relation", relation: relation.id }).find((entry) => entry.affordance.effect.kind === "inspect");
         const text = `${pageObject(page, relation.from)?.name ?? relation.from} → ${relation.label ?? humanizeKey(relation.kind)} → ${pageObject(page, relation.to)?.name ?? relation.to}`;
         if (inspect) {
           const button = el("button", { className: "jp-u-relation", text, attrs: { type: "button" } });
@@ -710,5 +770,8 @@ export function renderPage(page: JuanPageDocument, mount: HTMLElement, options: 
   }
 
   draw();
-  return { root: mount.firstElementChild as HTMLElement, destroy: () => mount.replaceChildren() };
+  return {
+    root: mount.firstElementChild as HTMLElement,
+    destroy: () => mount.replaceChildren(),
+  };
 }
