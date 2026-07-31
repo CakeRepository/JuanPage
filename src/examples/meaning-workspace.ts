@@ -1,4 +1,4 @@
-import { MeaningOpcode, meaningRef, type MeaningPacket } from "../protocol/meaning.js";
+import { MeaningActionKind, MeaningOpcode, meaningRef, type MeaningPacket } from "../protocol/meaning.js";
 
 const r = meaningRef;
 
@@ -34,17 +34,21 @@ export const futureMeaningPacket: MeaningPacket = [
     ["txt:approve", "Approve decision"],
     ["txt:add-note", "Add context"],
     ["txt:placeholder", "State what the next agent must preserve"],
+    ["txt:ping", "Emit trusted action"],
+    ["txt:destroy", "Delete semantic history"],
     ["txt:signal", "Human approval is blocking execution"],
     ["txt:source", "M1 policy engine"],
     ["txt:evidence", "The decision has an explicit approval action and no approved fact."],
     ["txt:permission", "This state transition requires human approval."],
+    ["txt:allow", "This diagnostic action is explicitly allowed."],
+    ["txt:deny", "Semantic history is immutable and deletion is denied."],
     ["rel:projects", "projects"],
     ["rel:blocks", "blocks"],
   ],
   [
     [MeaningOpcode.Header, r("txt:title"), r("txt:intent"), r("txt:description"), 2, 0, 0, 0],
     [MeaningOpcode.Entity, "e:north", "type:principle", r("txt:north"), r("txt:direction"), r("txt:active"), 2, r("txt:north-summary"), [], []],
-    [MeaningOpcode.Entity, "e:packet", "type:transport", r("txt:packet"), r("txt:system"), r("txt:ready"), 1, r("txt:packet-summary"), [], []],
+    [MeaningOpcode.Entity, "e:packet", "type:transport", r("txt:packet"), r("txt:system"), r("txt:ready"), 1, r("txt:packet-summary"), ["a:ping", "a:destroy"], []],
     [MeaningOpcode.Entity, "e:renderer", "type:renderer", r("txt:renderer"), r("txt:system"), r("txt:ready"), 1, r("txt:renderer-summary"), [], []],
     [MeaningOpcode.Entity, "e:decision", "type:decision", r("txt:decision"), r("txt:execution"), r("txt:human"), 3, r("txt:decision-summary"), ["a:approve", "a:note"], []],
     [MeaningOpcode.Fact, "e:decision", "prop:approved", false, r("txt:approved"), 0, 1, null],
@@ -52,10 +56,14 @@ export const futureMeaningPacket: MeaningPacket = [
     [MeaningOpcode.Relation, "e:north", "e:packet", "rel:projects", null],
     [MeaningOpcode.Relation, "e:packet", "e:renderer", "rel:projects", null],
     [MeaningOpcode.Relation, "e:decision", "e:renderer", "rel:blocks", null],
-    [MeaningOpcode.Action, "a:approve", 0, r("txt:approve"), "e:decision", "prop:approved", false, 2, null, "act:approve"],
-    [MeaningOpcode.Action, "a:note", 3, r("txt:add-note"), "e:decision", "prop:note", ["", r("txt:placeholder"), true], 0, null, "act:annotate"],
+    [MeaningOpcode.Action, "a:approve", MeaningActionKind.Toggle, r("txt:approve"), "e:decision", "prop:approved", false, 2, null, "act:approve"],
+    [MeaningOpcode.Action, "a:note", MeaningActionKind.Text, r("txt:add-note"), "e:decision", "prop:note", ["", r("txt:placeholder"), true], 0, null, "act:annotate"],
+    [MeaningOpcode.Action, "a:ping", MeaningActionKind.Emit, r("txt:ping"), "e:packet", null, ["e:packet"], 2, null, "act:diagnostic"],
+    [MeaningOpcode.Action, "a:destroy", MeaningActionKind.Emit, r("txt:destroy"), "e:packet", null, ["e:packet"], 4, null, "act:delete-history"],
     [MeaningOpcode.Signal, "s:approval", "e:decision", 0.88, r("txt:signal"), 0.97, r("txt:source"), "2026-07-31T20:30:00.000Z"],
     [MeaningOpcode.Evidence, "ev:approval", "e:decision", r("txt:source"), r("txt:evidence"), 1, "2026-07-31T20:30:00.000Z"],
     [MeaningOpcode.Permission, "a:approve", 2, r("txt:permission")],
+    [MeaningOpcode.Permission, "a:ping", 0, r("txt:allow")],
+    [MeaningOpcode.Permission, "a:destroy", 1, r("txt:deny")],
   ],
 ];
