@@ -1,0 +1,22 @@
+{
+  "approved_by": "juanpage-agent:self-evolution-audit",
+  "created_at": "2026-08-01T04:48:00Z",
+  "evidence": [
+    "skills/juanpage-agent/scripts/evolve.py",
+    "skills/juanpage-agent/tests/test_evolve.py"
+  ],
+  "evidence_blobs": {
+    "skills/juanpage-agent/scripts/evolve.py": "727318b8b27128c3e84a23d08df78c6e1c3fc39e",
+    "skills/juanpage-agent/tests/test_evolve.py": "a437bae6c62ea72c6025b62738378a548a26938e"
+  },
+  "id": "20260801T044800Z-bind-promotion-to-immutable-evidence",
+  "lesson": "Before promotion, verify that the canonical snapshot and every evidence file still match the exact digests recorded when the lesson was proposed.",
+  "lesson_fingerprint": "lesson:67ad9701d3d3a5e4",
+  "promoted_at": "2026-08-01T04:48:00Z",
+  "repository": "CakeRepository/juanpager",
+  "repository_commit": "548237dd9ad3d8d125878a893a64681906d3e90a",
+  "snapshot_digest": "c765489dc701d9e4b203be0a445c7e4faf70499fce136cc316b66b86f8840e73",
+  "status": "promoted",
+  "title": "Bind promotion to immutable evidence",
+  "version": 2
+}
