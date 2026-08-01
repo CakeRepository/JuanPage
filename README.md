@@ -115,13 +115,15 @@ Selecting July updates every dependent representation and produces a typed scope
 Requires Node.js 22.
 
 ```bash
-git clone https://github.com/CakeRepository/juanpager.git
-cd juanpager
+git clone https://github.com/CakeRepository/JuanPage.git
+cd JuanPage
 npm ci
 npm run check:one-runtime
 npm test
 npm run dev
 ```
+
+Production GitHub Pages runtime: `https://cakerepository.github.io/JuanPage/`
 
 The default operations example demonstrates display-only information, inspectable objects, field edits, approval-gated operations, projections, whole-surface scoping, typed view state, reversible reset, URL synchronization, and human activity receipts.
 
@@ -257,7 +259,7 @@ agent creates M1 packet
 ```
 
 ```text
-https://CakeRepository.github.io/juanpager/#v=5&enc=gz&data=ENCODED_PAYLOAD
+https://cakerepository.github.io/JuanPage/#v=5&enc=gz&data=ENCODED_PAYLOAD
 ```
 
 Share fragments render locally. Never put secrets in them; fragments can appear in browser history, screenshots, bookmarks, extensions, and copied messages. Use durable authenticated sessions when the payload is too large, long-lived, sensitive, or shared across devices.
