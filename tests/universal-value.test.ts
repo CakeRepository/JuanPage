@@ -49,7 +49,7 @@ describe("universal PageValue algebra", () => {
         id: `value:${index}`,
         type: "semantic-value",
         name: String(value[0]),
-        fields: [{ key: "value", value }],
+        fields: [{ key: "value", value, display: "prominent" }],
       })),
     });
     const mount = document.createElement("div");
