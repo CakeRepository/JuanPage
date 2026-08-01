@@ -4,21 +4,41 @@ import {
   type AgentHumanSession,
 } from "./session.js";
 
+export type AgentHumanSessionRevisionPrecondition = number | null;
+
 export interface AgentHumanSessionStore {
   readonly name: string;
   get(id: string): Promise<AgentHumanSession | undefined>;
-  put(session: AgentHumanSession, expectedRevision?: number): Promise<AgentHumanSession>;
+  put(
+    session: AgentHumanSession,
+    expectedRevision?: AgentHumanSessionRevisionPrecondition,
+  ): Promise<AgentHumanSession>;
   delete(id: string): Promise<void>;
 }
 
 export class AgentHumanSessionConflictError extends Error {
   constructor(
     readonly sessionId: string,
-    readonly expectedRevision: number,
+    readonly expectedRevision: AgentHumanSessionRevisionPrecondition,
     readonly actualRevision: number | undefined,
   ) {
-    super(`JuanPager session ${sessionId} changed before this update could be saved.`);
+    super(expectedRevision === null
+      ? `JuanPager session ${sessionId} already exists.`
+      : `JuanPager session ${sessionId} changed before this update could be saved.`);
     this.name = "AgentHumanSessionConflictError";
+  }
+}
+
+function assertPrecondition(
+  sessionId: string,
+  existing: AgentHumanSession | undefined,
+  expectedRevision: AgentHumanSessionRevisionPrecondition | undefined,
+): void {
+  if (expectedRevision === null && existing) {
+    throw new AgentHumanSessionConflictError(sessionId, null, existing.revision);
+  }
+  if (typeof expectedRevision === "number" && existing?.revision !== expectedRevision) {
+    throw new AgentHumanSessionConflictError(sessionId, expectedRevision, existing?.revision);
   }
 }
 
@@ -31,12 +51,13 @@ export class MemoryAgentHumanSessionStore implements AgentHumanSessionStore {
     return session ? structuredClone(session) : undefined;
   }
 
-  async put(sessionInput: AgentHumanSession, expectedRevision?: number): Promise<AgentHumanSession> {
+  async put(
+    sessionInput: AgentHumanSession,
+    expectedRevision?: AgentHumanSessionRevisionPrecondition,
+  ): Promise<AgentHumanSession> {
     const session = validateAgentHumanSession(sessionInput);
     const existing = this.sessions.get(session.id);
-    if (expectedRevision !== undefined && existing?.revision !== expectedRevision) {
-      throw new AgentHumanSessionConflictError(session.id, expectedRevision, existing?.revision);
-    }
+    assertPrecondition(session.id, existing, expectedRevision);
     this.sessions.set(session.id, structuredClone(session));
     return structuredClone(session);
   }
@@ -60,12 +81,13 @@ export class BrowserAgentHumanSessionStore implements AgentHumanSessionStore {
     return validateAgentHumanSession(JSON.parse(raw));
   }
 
-  async put(sessionInput: AgentHumanSession, expectedRevision?: number): Promise<AgentHumanSession> {
+  async put(
+    sessionInput: AgentHumanSession,
+    expectedRevision?: AgentHumanSessionRevisionPrecondition,
+  ): Promise<AgentHumanSession> {
     const session = validateAgentHumanSession(sessionInput);
     const existing = await this.get(session.id);
-    if (expectedRevision !== undefined && existing?.revision !== expectedRevision) {
-      throw new AgentHumanSessionConflictError(session.id, expectedRevision, existing?.revision);
-    }
+    assertPrecondition(session.id, existing, expectedRevision);
     localStorage.setItem(this.key(session.id), JSON.stringify(session));
     return session;
   }
@@ -110,18 +132,30 @@ export class HttpAgentHumanSessionStore implements AgentHumanSessionStore {
     return validateAgentHumanSession(await response.json());
   }
 
-  async put(sessionInput: AgentHumanSession, expectedRevision?: number): Promise<AgentHumanSession> {
+  async put(
+    sessionInput: AgentHumanSession,
+    expectedRevision?: AgentHumanSessionRevisionPrecondition,
+  ): Promise<AgentHumanSession> {
     const session = validateAgentHumanSession(sessionInput);
+    const precondition = expectedRevision === null
+      ? { "if-none-match": "*" }
+      : expectedRevision === undefined
+        ? {}
+        : { "if-match": String(expectedRevision) };
     const response = await fetch(this.url(session.id), {
       method: "PUT",
-      headers: this.headers(expectedRevision === undefined ? {} : { "if-match": String(expectedRevision) }),
+      headers: this.headers(precondition),
       credentials: this.options.credentials ?? "include",
       cache: "no-store",
       body: JSON.stringify(session),
     });
     if (response.status === 409 || response.status === 412) {
       const actual = Number(response.headers.get("x-session-revision"));
-      throw new AgentHumanSessionConflictError(session.id, expectedRevision ?? session.revision, Number.isFinite(actual) ? actual : undefined);
+      throw new AgentHumanSessionConflictError(
+        session.id,
+        expectedRevision ?? session.revision,
+        Number.isFinite(actual) ? actual : undefined,
+      );
     }
     if (!response.ok) throw new Error(`JuanPager session save failed with HTTP ${response.status}.`);
     const body = await response.text();
