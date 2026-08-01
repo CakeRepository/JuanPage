@@ -13,7 +13,7 @@ Most users want a working JuanPage they can open.
 
 For ordinary requests:
 
-1. Identify the JuanPager host URL. Prefer a URL supplied by the user. Otherwise use the documented production host when available.
+1. Identify the JuanPager host URL. Prefer a URL supplied by the user. Otherwise use the canonical production host: `https://cakerepository.github.io/JuanPage/`.
 2. Translate the request into a JuanPage 2.0 semantic graph.
 3. Add only real affordances and valid bindings.
 4. Validate the page with the repository's exported validator.
@@ -28,16 +28,16 @@ A first-run prompt may be:
 Create a JuanPage for a product launch command center.
 ```
 
-Given a configured host such as:
+Given the production host:
 
 ```text
-https://cakerepository.github.io/juanpager/
+https://cakerepository.github.io/JuanPage/
 ```
 
 generate a URL shaped like:
 
 ```text
-https://cakerepository.github.io/juanpager/#v=5&enc=gz&data=...
+https://cakerepository.github.io/JuanPage/#v=5&enc=gz&data=...
 ```
 
 Use direct JuanPage for safe, self-contained interfaces that inspect, set, scope, select, copy, or update local typed state. Use an M1 URL session when the human response must return to an agent as ordered deltas and receipts.
@@ -49,14 +49,14 @@ Do not open a pull request, modify the JuanPager repository, or design protocol 
 When a checked-out repository is available, generate URLs with the canonical encoder:
 
 ```bash
-export JUANPAGER_BASE_URL="https://cakerepository.github.io/juanpager/"
+export JUANPAGER_BASE_URL="https://cakerepository.github.io/JuanPage/"
 npm run encode -- path/to/page.json
 ```
 
 For an M1 round-trip session:
 
 ```bash
-export JUANPAGER_BASE_URL="https://cakerepository.github.io/juanpager/"
+export JUANPAGER_BASE_URL="https://cakerepository.github.io/JuanPage/"
 npm run encode -- path/to/packet.json --session
 ```
 
@@ -65,7 +65,7 @@ The resulting link is the deliverable. A self-contained URL transports data to t
 When the user returns a shared M1 session URL, decode it and use typed deltas and receipts as the human response:
 
 ```bash
-npm run decode -- "https://cakerepository.github.io/juanpager/#v=5&enc=gz&data=..."
+npm run decode -- "https://cakerepository.github.io/JuanPage/#v=5&enc=gz&data=..."
 ```
 
 Never put secrets, bearer credentials, private keys, or sensitive tokens in URL payloads.
@@ -90,7 +90,7 @@ Report final semantic differences separately from recorded activity. Resolve aff
 
 Enter this workflow only when the user asks to change, debug, review, or extend JuanPager itself.
 
-1. Locate the JuanPager repository root.
+1. Locate the `CakeRepository/JuanPage` repository root.
 2. Run:
 
    ```bash
