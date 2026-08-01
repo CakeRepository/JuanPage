@@ -193,6 +193,6 @@ export const skillFirstRunPage: JuanPageDocument = {
   ],
   metadata: {
     "example.kind": "skill-first-run",
-    "example.host": "https://cakerepository.github.io/juanpager/",
+    "example.host": "https://cakerepository.github.io/JuanPage/",
   },
 };
