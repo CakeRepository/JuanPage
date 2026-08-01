@@ -22,21 +22,18 @@ export type PageValuePatch = Readonly<{
   before?: PageScalar;
   after?: PageScalar;
 }>;
-
 export type PageScopePatch = Readonly<{
   domain: "scope";
   key: string;
   before?: PageScalar;
   after?: PageScalar;
 }>;
-
 export type PageSelectionPatch = Readonly<{
   domain: "selection";
   key: string;
   before?: readonly string[];
   after?: readonly string[];
 }>;
-
 export type PageSemanticStatePatch = Readonly<{
   domain: "interaction";
   state: PageInteractionDomain;
@@ -44,16 +41,13 @@ export type PageSemanticStatePatch = Readonly<{
   before?: PageInteractionValue;
   after?: PageInteractionValue;
 }>;
-
 export type PageStatePatch = PageValuePatch | PageScopePatch | PageSelectionPatch | PageSemanticStatePatch;
-
 export type PageTransaction = Readonly<{
   id: string;
   label: string;
   timestamp: string;
   patches: readonly PageStatePatch[];
 }>;
-
 export type PageTransactionAction = "commit" | "cancel" | "undo" | "redo";
 
 export class PageTransactionConflictError extends Error {
@@ -91,18 +85,8 @@ export type PageInteractionMutation =
   | Readonly<{ kind: "set"; target: string; field: string; value: PageScalar }>
   | Readonly<{ kind: "scope"; scope: string; value: PageScalar }>
   | Readonly<{ kind: "select"; selection: string; values: readonly string[] }>
-  | Readonly<{
-      kind: "state";
-      state: PageInteractionDomain;
-      key: string;
-      value?: PageInteractionValue;
-    }>
-  | Readonly<{
-      kind: "transaction";
-      transactionId: string;
-      action: PageTransactionAction;
-      patches: readonly PageStatePatch[];
-    }>;
+  | Readonly<{ kind: "state"; state: PageInteractionDomain; key: string; value?: PageInteractionValue }>
+  | Readonly<{ kind: "transaction"; transactionId: string; action: PageTransactionAction; patches: readonly PageStatePatch[] }>;
 
 let transactionSequence = 0;
 
@@ -243,7 +227,13 @@ function patchValue(state: PageState, patch: PageStatePatch): unknown {
   return interactionValue(state, patch.state, patch.key);
 }
 
-function assertPatchPrecondition(state: PageState, transaction: PageTransaction, patch: PageStatePatch, side: "before" | "after", index: number): void {
+function assertPatchPrecondition(
+  state: PageState,
+  transaction: PageTransaction,
+  patch: PageStatePatch,
+  side: "before" | "after",
+  index: number,
+): void {
   const expected = patch[side];
   const actual = patchValue(state, patch);
   if (!equal(expected, actual)) throw new PageTransactionConflictError(transaction.id, index, expected, actual);
@@ -257,9 +247,7 @@ function applyPatch(state: PageState, patch: PageStatePatch, side: "before" | "a
       delete current[patch.field];
       if (Object.keys(current).length) state.values[patch.target] = current;
       else delete state.values[patch.target];
-    } else {
-      state.values[patch.target] = { ...(state.values[patch.target] ?? {}), [patch.field]: value };
-    }
+    } else state.values[patch.target] = { ...(state.values[patch.target] ?? {}), [patch.field]: value };
     return;
   }
   if (patch.domain === "scope") {
@@ -379,6 +367,7 @@ export function setPageInteractionState(
 }
 
 export function setPageFocus(state: PageState, anchor: string | undefined): void {
+  if (anchor?.startsWith("history:")) return;
   state.focus = anchor;
 }
 
