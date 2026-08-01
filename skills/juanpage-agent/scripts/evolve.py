@@ -147,6 +147,20 @@ def normalize_evidence(repo: Path, values: list[str]) -> list[str]:
     return sorted(set(normalized))
 
 
+def evidence_blobs(repo: Path, evidence: list[str]) -> dict[str, str]:
+    return {path: git_blob_sha((repo / path).read_bytes()) for path in evidence}
+
+
+def next_candidate_path(output_dir: Path, identifier: str) -> Path:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    path = output_dir / f"{identifier}.json"
+    index = 2
+    while path.exists():
+        path = output_dir / f"{identifier}-{index}.json"
+        index += 1
+    return path
+
+
 def command_propose(args: argparse.Namespace) -> int:
     repo = args.repo.resolve()
     title = args.title.strip()
@@ -158,13 +172,15 @@ def command_propose(args: argparse.Namespace) -> int:
     evidence = normalize_evidence(repo, args.evidence)
     snapshot = current_snapshot(repo, args.manifest)
     identifier = f"{dt.datetime.now(dt.timezone.utc).strftime('%Y%m%dT%H%M%SZ')}-{slug(title)}"
-    path = args.output_dir / f"{identifier}.json"
+    path = next_candidate_path(args.output_dir, identifier)
     write_json(path, {
-        "version": 1,
-        "id": identifier,
+        "version": 2,
+        "id": path.stem,
         "title": title,
         "lesson": lesson,
         "evidence": evidence,
+        "evidence_blobs": evidence_blobs(repo, evidence),
+        "repository": snapshot["repository"],
         "repository_commit": snapshot["commit"],
         "snapshot_digest": snapshot_digest(snapshot),
         "created_at": utc_now(),
@@ -172,6 +188,27 @@ def command_propose(args: argparse.Namespace) -> int:
     })
     print(path)
     return 0
+
+
+def verify_candidate_integrity(
+    repo: Path,
+    candidate: dict[str, Any],
+    manifest: Path,
+    evidence: list[str],
+) -> None:
+    snapshot = current_snapshot(repo, manifest)
+    if candidate.get("repository") != snapshot["repository"]:
+        raise SystemExit("Candidate repository does not match this JuanPager repository; re-propose it here")
+    expected_snapshot = candidate.get("snapshot_digest")
+    if not isinstance(expected_snapshot, str) or expected_snapshot != snapshot_digest(snapshot):
+        raise SystemExit("Canonical source changed after this candidate was proposed; inspect the drift and re-propose the lesson")
+    expected_blobs = candidate.get("evidence_blobs")
+    if not isinstance(expected_blobs, dict) or set(expected_blobs) != set(evidence):
+        raise SystemExit("Candidate lacks complete evidence digests; re-propose it with the current evolution tool")
+    current_blobs = evidence_blobs(repo, evidence)
+    changed = sorted(path for path in evidence if expected_blobs.get(path) != current_blobs[path])
+    if changed:
+        raise SystemExit("Candidate evidence changed after proposal:\n- " + "\n- ".join(changed) + "\nRe-review and re-propose the lesson")
 
 
 def command_promote(args: argparse.Namespace) -> int:
@@ -188,6 +225,7 @@ def command_promote(args: argparse.Namespace) -> int:
     if not isinstance(title, str) or not isinstance(lesson, str) or not isinstance(evidence, list):
         raise SystemExit("Candidate is missing title, lesson, or evidence")
     normalized = normalize_evidence(repo, [str(item) for item in evidence])
+    verify_candidate_integrity(repo, candidate, args.manifest, normalized)
     lessons_text = args.lessons.read_text(encoding="utf-8") if args.lessons.exists() else "# Promoted JuanPage patterns\n"
     fingerprint = hashlib.sha256(lesson.strip().lower().encode("utf-8")).hexdigest()[:16]
     marker = f"lesson:{fingerprint}"
