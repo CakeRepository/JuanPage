@@ -1,10 +1,7 @@
 import { z } from "zod";
 import { semanticProjectionSchema, type SemanticProjection } from "../projection/universal.js";
 import { DocumentValidationError } from "./errors.js";
-import {
-  pageInteractionStateSchema,
-  type PageInteractionState,
-} from "./interaction.js";
+import { pageInteractionStateSchema } from "./interaction.js";
 import { LIMITS } from "./limits.js";
 import { isAllowedUrl } from "./url.js";
 import { pageScalarSchema, pageValueSchema } from "./value.js";
@@ -45,8 +42,7 @@ const text = (max: number = LIMITS.maxTextLength) => z.string().min(1).max(max);
 const optionalText = (max: number = LIMITS.maxTextLength) => z.string().max(max).optional();
 const id = z.string().min(1).max(80).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/);
 const key = z.string().min(1).max(80).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/);
-
-const safeUrl = z.string().max(LIMITS.maxUrlLength).refine((value) => isAllowedUrl(value), {
+const safeUrl = z.string().max(LIMITS.maxUrlLength).refine(isAllowedUrl, {
   message: "URL must be https (or localhost during development)",
 });
 
@@ -278,16 +274,21 @@ function validateSemanticProjectionReferences(
       invalid(`Projection "${projection.id}" field "${field}" is unavailable.`);
     }
   }
-  if (projection.family === "hierarchy" && projection.relationKind) {
-    if (!(page.relations ?? []).some((relation) => relation.kind === projection.relationKind)) {
-      invalid(`Hierarchy projection "${projection.id}" relation kind "${projection.relationKind}" is unavailable.`);
-    }
+  if (projection.family === "hierarchy" && projection.relationKind
+    && !(page.relations ?? []).some((relation) => relation.kind === projection.relationKind)) {
+    invalid(`Hierarchy projection "${projection.id}" relation kind "${projection.relationKind}" is unavailable.`);
   }
 }
 
-function validateStateObjectIds(name: string, values: Record<string, readonly string[]> | undefined, objectIds: Set<string>): void {
-  for (const [keyValue, ids] of Object.entries(values ?? {})) {
-    for (const objectId of ids) if (!objectIds.has(objectId)) invalid(`Initial ${name} "${keyValue}" references unknown object "${objectId}".`);
+function validateStateObjectIds(
+  name: string,
+  values: Record<string, readonly string[]> | undefined,
+  objectIds: Set<string>,
+): void {
+  for (const [stateKey, ids] of Object.entries(values ?? {})) {
+    for (const objectId of ids) {
+      if (!objectIds.has(objectId)) invalid(`Initial ${name} "${stateKey}" references unknown object "${objectId}".`);
+    }
   }
 }
 
@@ -343,15 +344,20 @@ export function validatePage(input: unknown): JuanPageDocument {
       if (!candidates.some((object) => fieldsByObject.get(object.id)?.has(projection.dimension))) {
         invalid(`Projection "${projection.id}" dimension "${projection.dimension}" is unavailable.`);
       }
-      if (projection.operation !== "count" && !candidates.some((object) => fieldsByObject.get(object.id)?.has(projection.measure))) {
+      if (projection.operation !== "count"
+        && !candidates.some((object) => fieldsByObject.get(object.id)?.has(projection.measure))) {
         invalid(`Projection "${projection.id}" measure "${projection.measure}" is unavailable.`);
       }
-      for (const scopeId of projection.ignoreScopes ?? []) if (!scopeIds.has(scopeId)) invalid(`Projection "${projection.id}" ignores unknown scope "${scopeId}".`);
+      for (const scopeId of projection.ignoreScopes ?? []) {
+        if (!scopeIds.has(scopeId)) invalid(`Projection "${projection.id}" ignores unknown scope "${scopeId}".`);
+      }
     }
   }
 
   for (const metric of page.metrics ?? []) {
-    for (const scopeId of metric.ignoreScopes ?? []) if (!scopeIds.has(scopeId)) invalid(`Metric "${metric.id}" ignores unknown scope "${scopeId}".`);
+    for (const scopeId of metric.ignoreScopes ?? []) {
+      if (!scopeIds.has(scopeId)) invalid(`Metric "${metric.id}" ignores unknown scope "${scopeId}".`);
+    }
   }
 
   const affordanceIds = new Set<string>();
@@ -371,7 +377,8 @@ export function validatePage(input: unknown): JuanPageDocument {
     if (effect.kind === "select") selectionIds.add(effect.selection);
     if (effect.kind === "copy" && effect.source === "field" && !effect.field) invalid(`Affordance "${affordance.id}" copies a field but does not name one.`);
     if (effect.kind === "copy" && effect.source === "url" && !effect.url) invalid(`Affordance "${affordance.id}" copies a URL but does not provide one.`);
-    if (inputKind === "number" && affordance.input.presentation === "adjust" && (affordance.input.min === undefined || affordance.input.max === undefined)) {
+    if (inputKind === "number" && affordance.input.presentation === "adjust"
+      && (affordance.input.min === undefined || affordance.input.max === undefined)) {
       invalid(`Adjust affordance "${affordance.id}" needs both min and max.`);
     }
   }
@@ -382,8 +389,8 @@ export function validatePage(input: unknown): JuanPageDocument {
     const affordance = affordances.get(binding.affordance);
     if (!affordance) invalid(`Binding "${binding.id}" references unknown affordance "${binding.affordance}".`);
     const target = binding.target;
-    if (target.kind === "object" || target.kind === "field") {
-      if (!objectIds.has(target.object)) invalid(`Binding "${binding.id}" references unknown object "${target.object}".`);
+    if ((target.kind === "object" || target.kind === "field") && !objectIds.has(target.object)) {
+      invalid(`Binding "${binding.id}" references unknown object "${target.object}".`);
     }
     if (target.kind === "field" && !fieldsByObject.get(target.object)?.has(target.field)) {
       invalid(`Binding "${binding.id}" references unknown field "${target.object}.${target.field}".`);
@@ -406,12 +413,15 @@ export function validatePage(input: unknown): JuanPageDocument {
     }
   }
 
-  for (const scopeId of Object.keys(page.state?.scopes ?? {})) if (!scopeIds.has(scopeId)) invalid(`Initial state references unknown scope "${scopeId}".`);
-  for (const selectionId of Object.keys(page.state?.selections ?? {})) if (!selectionIds.has(selectionId)) invalid(`Initial state references unknown selection "${selectionId}".`);
+  for (const scopeId of Object.keys(page.state?.scopes ?? {})) {
+    if (!scopeIds.has(scopeId)) invalid(`Initial state references unknown scope "${scopeId}".`);
+  }
+  for (const selectionId of Object.keys(page.state?.selections ?? {})) {
+    if (!selectionIds.has(selectionId)) invalid(`Initial state references unknown selection "${selectionId}".`);
+  }
   validateStateObjectIds("expansion", page.state?.expansions, objectIds);
   validateStateObjectIds("path", page.state?.paths, objectIds);
   validateStateObjectIds("ordering", page.state?.ordering, objectIds);
-
   return page;
 }
 
