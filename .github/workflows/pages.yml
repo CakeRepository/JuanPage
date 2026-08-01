@@ -17,6 +17,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      JUANPAGER_BASE: /JuanPage/
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
