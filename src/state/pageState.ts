@@ -1,7 +1,6 @@
 import {
   objectField,
   type JuanPageDocument,
-  type PageBindingTarget,
   type PageObject,
   type PageScalar,
   type PageValue,
@@ -73,12 +72,13 @@ export type PageState = {
   playheads: Record<string, number>;
   ordering: Record<string, string[]>;
   groupings: Record<string, string>;
+  queries: Record<string, string>;
+  filters: Record<string, PageScalar>;
+  panels: Record<string, string>;
   focus?: string;
   clocks: Record<string, PageClockState>;
   history: PageTransaction[];
   future: PageTransaction[];
-  inspection?: PageBindingTarget;
-  activeGroup?: string;
 };
 
 export type PageInteractionMutation =
@@ -109,6 +109,9 @@ function initialState(page: JuanPageDocument): PageState {
     playheads: { ...(page.state?.playheads ?? {}) },
     ordering: Object.fromEntries(Object.entries(page.state?.ordering ?? {}).map(([name, values]) => [name, [...values]])),
     groupings: { ...(page.state?.groupings ?? {}) },
+    queries: { ...(page.state?.queries ?? {}) },
+    filters: { ...(page.state?.filters ?? {}) },
+    panels: { ...(page.state?.panels ?? {}) },
     focus: page.state?.focus,
     clocks: structuredClone(page.state?.clocks ?? {}),
     history: [],
@@ -141,6 +144,9 @@ function interactionSnapshot(state: Partial<PageState>): Record<string, unknown>
     playheads: state.playheads,
     ordering: state.ordering,
     groupings: state.groupings,
+    queries: state.queries,
+    filters: state.filters,
+    panels: state.panels,
     focus: state.focus,
     clocks: state.clocks,
   };
@@ -167,9 +173,17 @@ export function loadPageState(key: string, page: JuanPageDocument): PageState {
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return fallback;
-    const parsed = JSON.parse(raw) as Partial<PageState>;
+    const parsed = JSON.parse(raw) as Partial<PageState> & { inspection?: unknown; activeGroup?: unknown };
     const interaction = pageInteractionStateSchema.safeParse(interactionSnapshot(parsed));
     const restored = interaction.success ? interaction.data : {};
+    const migratedPanels = { ...fallback.panels, ...(restored.panels ?? {}) };
+    if (!migratedPanels.inspector && parsed.inspection && typeof parsed.inspection === "object") {
+      migratedPanels.inspector = JSON.stringify(parsed.inspection);
+    }
+    const migratedFilters = { ...fallback.filters, ...(restored.filters ?? {}) };
+    if (migratedFilters.group === undefined && typeof parsed.activeGroup === "string" && parsed.activeGroup !== "all") {
+      migratedFilters.group = parsed.activeGroup;
+    }
     return {
       values: parsed.values && typeof parsed.values === "object" ? parsed.values : {},
       scopes: { ...fallback.scopes, ...(restored.scopes ?? {}) },
@@ -181,12 +195,13 @@ export function loadPageState(key: string, page: JuanPageDocument): PageState {
       playheads: { ...fallback.playheads, ...(restored.playheads ?? {}) },
       ordering: Object.fromEntries(Object.entries(restored.ordering ?? fallback.ordering).map(([name, values]) => [name, [...values]])),
       groupings: { ...fallback.groupings, ...(restored.groupings ?? {}) },
+      queries: { ...fallback.queries, ...(restored.queries ?? {}) },
+      filters: migratedFilters,
+      panels: migratedPanels,
       focus: restored.focus ?? fallback.focus,
       clocks: structuredClone(restored.clocks ?? fallback.clocks),
       history: validTransactions(parsed.history),
       future: validTransactions(parsed.future),
-      inspection: parsed.inspection && typeof parsed.inspection === "object" ? parsed.inspection : undefined,
-      activeGroup: typeof parsed.activeGroup === "string" ? parsed.activeGroup : undefined,
     };
   } catch {
     return fallback;
@@ -404,6 +419,61 @@ export function redoPageTransaction(state: PageState): PageTransaction | undefin
   return transaction;
 }
 
+export function resetPageToInitial(
+  state: PageState,
+  page: JuanPageDocument,
+  label = "Reset page",
+): PageTransaction | undefined {
+  const target = initialState(page);
+  const patches: PageStatePatch[] = [];
+
+  for (const [objectId, fields] of Object.entries(state.values)) {
+    for (const [field, before] of Object.entries(fields)) {
+      patches.push({ domain: "value", target: objectId, field, before, after: undefined });
+    }
+  }
+
+  for (const key of new Set([...Object.keys(state.scopes), ...Object.keys(target.scopes)])) {
+    const before = state.scopes[key];
+    const after = target.scopes[key];
+    if (!equal(before, after)) patches.push({ domain: "scope", key, before, after });
+  }
+
+  for (const key of new Set([...Object.keys(state.selections), ...Object.keys(target.selections)])) {
+    const before = state.selections[key] === undefined ? undefined : [...state.selections[key]];
+    const after = target.selections[key] === undefined ? undefined : [...target.selections[key]];
+    if (!equal(before, after)) patches.push({ domain: "selection", key, before, after });
+  }
+
+  const domains: Exclude<PageInteractionDomain, "focus">[] = [
+    "expansions",
+    "paths",
+    "viewports",
+    "ranges",
+    "playheads",
+    "ordering",
+    "groupings",
+    "queries",
+    "filters",
+    "panels",
+    "clocks",
+  ];
+  for (const domain of domains) {
+    const currentRecord = interactionRecord(state, domain);
+    const targetRecord = interactionRecord(target, domain);
+    for (const key of new Set([...Object.keys(currentRecord), ...Object.keys(targetRecord)])) {
+      const before = interactionValue(state, domain, key);
+      const after = interactionValue(target, domain, key);
+      if (!equal(before, after)) patches.push({ domain: "interaction", state: domain, key, before, after });
+    }
+  }
+  if (!equal(state.focus, target.focus)) {
+    patches.push({ domain: "interaction", state: "focus", key: "active", before: state.focus, after: target.focus });
+  }
+  if (!patches.length) return undefined;
+  return commitPageTransaction(state, createPageTransaction(label, patches));
+}
+
 export function pageInteractionSnapshot(state: PageState): import("../schema/interaction.js").PageInteractionState {
   return {
     scopes: { ...state.scopes },
@@ -415,6 +485,9 @@ export function pageInteractionSnapshot(state: PageState): import("../schema/int
     playheads: { ...state.playheads },
     ordering: Object.fromEntries(Object.entries(state.ordering).map(([key, values]) => [key, [...values]])),
     groupings: { ...state.groupings },
+    queries: { ...state.queries },
+    filters: { ...state.filters },
+    panels: { ...state.panels },
     focus: state.focus,
     clocks: structuredClone(state.clocks),
   };
