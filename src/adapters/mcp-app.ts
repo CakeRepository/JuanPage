@@ -80,7 +80,7 @@ export async function createMcpHumanHandoff(input: Readonly<{
       "mcp.requiresHuman": true,
     },
   });
-  await input.store.put(session);
+  await input.store.put(session, null);
   const launchUrl = sessionLaunchUrl(session.id, input.appBaseUrl);
   return {
     session,

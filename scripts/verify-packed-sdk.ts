@@ -13,13 +13,23 @@ const consumerSource = `
 import { join } from "node:path";
 import {
   MemoryNonceStore,
+  advanceAgentHumanSession,
+  appendMeaningSessionDelta,
+  createActionDelta,
+  createActionReceipt,
+  createAgentHumanSession,
+  createMeaningSession,
   createScopeDelta,
   generateEd25519KeyPair,
+  materializeMeaningPacket,
   signMeaningPacket,
   validatePage,
   verifyMeaningPacket,
 } from "juanpager";
 import { FileNonceStore } from "juanpager/node";
+import { MemoryAgentHumanSessionStore } from "juanpager/session";
+import { executeStoredAgentHumanSession } from "juanpager/execution";
+import { notificationForAgentHumanSession } from "juanpager/notification";
 
 const page = validatePage({
   version: "2.0",
@@ -91,7 +101,98 @@ if (await secondStore.consume("consumer:test", "nonce:persistent", new Date(Date
   throw new Error("FileNonceStore allowed replay after restart.");
 }
 
-console.log("Packed JuanPager SDK verified from a clean consumer project.");
+const loopPacket = [
+  1,
+  "pkt:consumer:loop",
+  0,
+  null,
+  [],
+  [
+    [0, [1, "External agent handoff"], [1, "Approve a change and continue the agent"], null, 0, 0, 0, 0],
+    [1, "entity:change", "type:change", [1, "Production change"], null, null, 1, null, ["action:approve"], []],
+    [2, "entity:change", "prop:approved", false, [1, "Approved"], 0, 1, null],
+    [4, "action:approve", 0, [1, "Approve"], "entity:change", "prop:approved", false, 2, null, "operation:approve"],
+    [8, "action:approve", 2, [1, "Human approval is required"]],
+  ],
+];
+let loopMeaning = createMeaningSession(loopPacket);
+const proposal = createActionDelta(
+  "pkt:consumer:loop",
+  0,
+  "actor:human:external",
+  "action:approve",
+  "entity:change",
+  { source: "clean-room-consumer" },
+  "approval",
+  {
+    mutationId: "mutation:consumer:approve",
+    idempotencyKey: "idempotency:consumer:approve",
+  },
+);
+loopMeaning = appendMeaningSessionDelta(
+  loopMeaning,
+  proposal,
+  createActionReceipt(proposal, "proposed", { execution: "record-only" }),
+);
+let loopSession = createAgentHumanSession({
+  id: "session:consumer:loop",
+  document: materializeMeaningPacket(loopPacket),
+  meaning: loopMeaning,
+  source: { kind: "agent", agentId: "agent:external", requestId: "request:external" },
+});
+loopSession = advanceAgentHumanSession(loopSession, { status: "completed" }, loopSession.revision);
+const sessionStore = new MemoryAgentHumanSessionStore();
+await sessionStore.put(loopSession);
+let executions = 0;
+const continuation = await executeStoredAgentHumanSession({
+  sessionId: loopSession.id,
+  store: sessionStore,
+  executor: {
+    name: "external-consumer-executor",
+    async execute(request) {
+      executions += 1;
+      if (request.idempotencyKey !== "idempotency:consumer:approve") {
+        throw new Error("Executor did not receive the original idempotency key.");
+      }
+      return {
+        status: "succeeded",
+        result: { approved: true, external: true },
+        facts: [{ kind: "set", target: "entity:change", property: "prop:approved", value: true }],
+        evidence: ["evidence:external:approval"],
+      };
+    },
+  },
+});
+if (continuation.status !== "executed" || executions !== 1) {
+  throw new Error("Verified external agent continuation did not execute exactly once.");
+}
+const approved = continuation.session.document.objects
+  .find((object) => object.id === "entity:change")
+  ?.fields?.find((field) => field.key === "prop:approved")?.value;
+if (approved !== true) throw new Error("Verified execution did not materialize the authoritative fact update.");
+const repeated = await executeStoredAgentHumanSession({
+  sessionId: loopSession.id,
+  store: sessionStore,
+  executor: {
+    name: "must-not-run",
+    async execute() {
+      executions += 1;
+      return { status: "succeeded" };
+    },
+  },
+});
+if (repeated.status !== "already-completed" || executions !== 1) {
+  throw new Error("Idempotent continuation allowed duplicate execution.");
+}
+const notification = notificationForAgentHumanSession({
+  session: continuation.session,
+  appBaseUrl: "https://app.example/juanpager/",
+});
+if (!notification.launchUrl.endsWith("#v=5&session=session%3Aconsumer%3Aloop")) {
+  throw new Error("Notification entrypoint did not preserve the durable session handoff.");
+}
+
+console.log("Packed JuanPager SDK verified from a clean consumer project, including verified agent continuation.");
 `;
 
 try {

@@ -14,6 +14,8 @@
     "./state": { "types": "./dist-sdk/state/pageState.d.ts", "import": "./dist-sdk/state/pageState.js" },
     "./interaction": { "types": "./dist-sdk/protocol/interaction.d.ts", "import": "./dist-sdk/protocol/interaction.js" },
     "./session": { "types": "./dist-sdk/session/index.d.ts", "import": "./dist-sdk/session/index.js" },
+    "./execution": { "types": "./dist-sdk/execution/index.d.ts", "import": "./dist-sdk/execution/index.js" },
+    "./notification": { "types": "./dist-sdk/notification/index.d.ts", "import": "./dist-sdk/notification/index.js" },
     "./node": { "types": "./dist-sdk/node.d.ts", "import": "./dist-sdk/node.js" },
     "./protocol": { "types": "./dist-sdk/protocol/meaning.d.ts", "import": "./dist-sdk/protocol/meaning.js" },
     "./envelope": { "types": "./dist-sdk/protocol/envelope.d.ts", "import": "./dist-sdk/protocol/envelope.js" },

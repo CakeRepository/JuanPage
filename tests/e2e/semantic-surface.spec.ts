@@ -107,7 +107,7 @@ test("reset is a typed reversible transaction that restores the original M1 fact
   await expect(page.locator('[data-affordance-id="a:ring"] select')).toHaveValue("1");
 });
 
-test("the same runtime ships as an installable offline shell", async ({ page, request }) => {
+test("the same runtime ships as an installable notification-capable offline shell", async ({ page, request }) => {
   await page.goto("./");
   const manifest = await request.get("./manifest.webmanifest");
   expect(manifest.ok()).toBeTruthy();
@@ -117,5 +117,9 @@ test("the same runtime ships as an installable offline shell", async ({ page, re
 
   const worker = await request.get("./sw.js");
   expect(worker.ok()).toBeTruthy();
-  expect(await worker.text()).toContain("juanpager-shell-v1");
+  const workerSource = await worker.text();
+  expect(workerSource).toContain('CACHE_VERSION = "juanpager-shell-v2"');
+  expect(workerSource).toContain('addEventListener("notificationclick"');
+  expect(workerSource).toContain("launchUrl.origin !== scopeUrl.origin");
+  expect(workerSource).toContain("launchUrl.pathname.startsWith(scopeUrl.pathname)");
 });
