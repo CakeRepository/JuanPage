@@ -92,7 +92,7 @@ const REQUIRED_IMPORTS: Record<string, readonly string[]> = {
   "src/builder.ts": ["/schema/page", "/rendering/renderPage", "/encoding/pagePipeline", "/protocol/meaning"],
   "src/rendering/renderPage.ts": ["/schema/page", "/state/pageState"],
   "src/state/pageState.ts": ["/schema/page"],
-  "src/schema/value.ts": ["/schema/limits", "/schema/url"],
+  "src/schema/value.ts": ["./limits", "./url"],
   "src/projection/universal.ts": ["/schema/page", "/schema/value"],
   "src/protocol/meaning.ts": ["/schema/page"],
   "src/encoding/pagePipeline.ts": ["/schema/page", "/protocol/meaning"],
