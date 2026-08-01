@@ -43,7 +43,7 @@ const objects: PageObject[] = [
       { key: "order", value: 2 },
       { key: "region", value: "South" },
       { key: "quarter", value: "Q2" },
-      { key: "amount", value: 150 },
+      { key: "amount", value: ["quantity", 150, "USD"] },
       { key: "window", value: ["interval", "2026-08-01T00:00:00.000Z", "2026-08-31T23:59:59.000Z", true, true] },
       { key: "geometry", value: ["path", "EPSG:4326", 2, -93.0, 44.7, -92.9, 44.8] },
       { key: "content", value: "Second block" },
@@ -64,7 +64,7 @@ const relations: PageRelation[] = [
 const source = { objects, relations };
 
 describe("generalized semantic projection algebra", () => {
-  it("evaluates categorical and matrix projections deterministically", () => {
+  it("evaluates categorical and matrix projections deterministically while preserving units", () => {
     const categorical = evaluateSemanticProjection(source, {
       id: "p:region",
       label: "Amount by region",
@@ -75,7 +75,10 @@ describe("generalized semantic projection algebra", () => {
       aggregate: "sum",
     });
     expect(categorical.family).toBe("categorical");
-    if (categorical.family === "categorical") expect(categorical.buckets.map((bucket) => bucket.value)).toEqual([100, 150]);
+    if (categorical.family === "categorical") {
+      expect(categorical.buckets.map((bucket) => bucket.value)).toEqual([100, 150]);
+      expect(categorical.buckets.map((bucket) => bucket.unit)).toEqual(["USD", "USD"]);
+    }
 
     const matrix = evaluateSemanticProjection(source, {
       id: "p:matrix",
@@ -92,6 +95,7 @@ describe("generalized semantic projection algebra", () => {
       expect(matrix.rows).toEqual(["North", "South"]);
       expect(matrix.columns).toEqual(["Q1", "Q2"]);
       expect(matrix.cells).toHaveLength(2);
+      expect(matrix.cells.every((cell) => cell.unit === "USD")).toBe(true);
     }
   });
 
@@ -108,6 +112,7 @@ describe("generalized semantic projection algebra", () => {
     if (temporal.family === "temporal") {
       expect(temporal.events[0]?.start).toBe("2026-07-01T00:00:00.000Z");
       expect(temporal.events[0]?.end).toBe("2026-07-31T23:59:59.000Z");
+      expect(temporal.events[0]?.unit).toBe("USD");
     }
 
     const hierarchy = evaluateSemanticProjection(source, {
@@ -125,9 +130,13 @@ describe("generalized semantic projection algebra", () => {
       label: "Dependencies",
       family: "network",
       relationKinds: ["depends-on"],
+      weightField: "amount",
     });
     expect(network.family).toBe("network");
-    if (network.family === "network") expect(network.edges.map((edge) => edge.relationId)).toEqual(["r:depends"]);
+    if (network.family === "network") {
+      expect(network.edges.map((edge) => edge.relationId)).toEqual(["r:depends"]);
+      expect(network.edges[0]?.weightUnit).toBe("USD");
+    }
   });
 
   it("evaluates spatial, document, and ordered stream meaning", () => {
@@ -166,7 +175,7 @@ describe("generalized semantic projection algebra", () => {
     if (stream.family === "stream") expect(stream.events.map((event) => event.author)).toEqual(["Justin", "Agent"]);
   });
 
-  it("rejects incomplete projection semantics and hierarchy cycles", () => {
+  it("rejects incomplete semantics, incompatible units, and hierarchy cycles", () => {
     expect(() => validateSemanticProjection({
       id: "p:bad",
       label: "Bad",
@@ -175,6 +184,19 @@ describe("generalized semantic projection algebra", () => {
       column: "quarter",
       aggregate: "sum",
     })).toThrow();
+
+    const mixedUnits: PageObject[] = [
+      { id: "m:a", type: "measurement", name: "Mass", fields: [{ key: "kind", value: "total" }, { key: "value", value: ["quantity", 10, "kg"] }] },
+      { id: "m:b", type: "measurement", name: "Length", fields: [{ key: "kind", value: "total" }, { key: "value", value: ["quantity", 5, "m"] }] },
+    ];
+    expect(() => evaluateSemanticProjection({ objects: mixedUnits }, {
+      id: "p:units",
+      label: "Invalid total",
+      family: "categorical",
+      dimension: "kind",
+      measure: "value",
+      aggregate: "sum",
+    })).toThrow(/incompatible units/);
 
     const cyclic = objects.map((object) => object.id === "org"
       ? { ...object, fields: [...(object.fields ?? []).filter((field) => field.key !== "parent"), { key: "parent", value: "project:a" }] }
