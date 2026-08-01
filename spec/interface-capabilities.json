@@ -27,79 +27,78 @@
       "examples": ["charts", "dashboards", "gauges", "scorecards", "progress", "financial views"],
       "semanticPrimitives": ["metric", "projection", "scope", "selection", "quantity", "uncertainty", "distribution", "matrix"],
       "status": "partial",
-      "evidence": ["src/schema/value.ts", "src/projection/universal.ts", "src/rendering/renderPage.ts", "tests/universal-value.test.ts", "tests/universal-projection.test.ts"],
-      "missing": ["multi-series adaptive rendering", "uncertainty visualization", "interactive matrix rendering"]
+      "evidence": ["src/schema/value.ts", "src/projection/universal.ts", "src/rendering/renderSemanticProjection.ts", "tests/universal-value.test.ts", "tests/universal-projection.test.ts", "tests/universal-interaction.test.ts"],
+      "missing": ["multi-series correlation semantics", "uncertainty and distribution direct manipulation"]
     },
     {
       "id": "hierarchy",
       "examples": ["trees", "outlines", "org charts", "file browsers", "nested navigation"],
-      "semanticPrimitives": ["object", "relation", "ordered parent-child", "selection", "scope"],
-      "status": "partial",
-      "evidence": ["src/projection/universal.ts", "tests/universal-projection.test.ts"],
-      "missing": ["expansion state", "semantic path state", "adaptive hierarchy rendering"]
+      "semanticPrimitives": ["object", "relation", "ordered parent-child", "expansion", "path", "selection"],
+      "status": "implemented",
+      "evidence": ["src/projection/universal.ts", "src/schema/interaction.ts", "src/rendering/renderSemanticProjection.ts", "src/protocol/interaction.ts", "tests/universal-projection.test.ts", "tests/universal-interaction.test.ts"]
     },
     {
       "id": "network",
       "examples": ["knowledge graphs", "dependency maps", "topologies", "social graphs", "flow diagrams"],
-      "semanticPrimitives": ["object", "directed relation", "relation measure", "selection", "inspect"],
-      "status": "partial",
-      "evidence": ["src/schema/page.ts", "src/projection/universal.ts", "tests/universal-projection.test.ts"],
-      "missing": ["graph traversal scope", "adaptive network rendering"]
+      "semanticPrimitives": ["object", "directed relation", "relation measure", "traversal path", "selection", "inspect"],
+      "status": "implemented",
+      "evidence": ["src/projection/universal.ts", "src/schema/interaction.ts", "src/rendering/renderSemanticProjection.ts", "src/protocol/interaction.ts", "tests/universal-projection.test.ts", "tests/universal-interaction.test.ts"]
     },
     {
       "id": "temporal",
       "examples": ["timelines", "calendars", "schedules", "Gantt charts", "playback", "event streams"],
-      "semanticPrimitives": ["instant", "interval", "duration", "recurrence", "temporal projection", "scope"],
+      "semanticPrimitives": ["instant", "interval", "duration", "recurrence", "temporal projection", "range", "playhead"],
       "status": "partial",
-      "evidence": ["src/schema/value.ts", "src/projection/universal.ts", "tests/universal-value.test.ts", "tests/universal-projection.test.ts"],
-      "missing": ["recurrence expansion", "playhead state", "adaptive temporal rendering"]
+      "evidence": ["src/schema/value.ts", "src/schema/interaction.ts", "src/projection/universal.ts", "src/rendering/renderSemanticProjection.ts", "tests/universal-value.test.ts", "tests/universal-interaction.test.ts"],
+      "missing": ["bounded recurrence expansion", "timezone-aware calendar conflict resolution"]
     },
     {
       "id": "spatial",
       "examples": ["maps", "floor plans", "diagrams", "geospatial dashboards", "3D scenes"],
-      "semanticPrimitives": ["coordinate", "bounds", "path", "geometry", "spatial projection", "selection", "scope"],
+      "semanticPrimitives": ["coordinate", "bounds", "path", "geometry", "spatial projection", "viewport", "zoom", "selection"],
       "status": "partial",
-      "evidence": ["src/schema/value.ts", "src/projection/universal.ts", "tests/universal-value.test.ts", "tests/universal-projection.test.ts"],
-      "missing": ["viewport and zoom state", "spatial relation semantics", "adaptive spatial rendering"]
+      "evidence": ["src/schema/value.ts", "src/schema/interaction.ts", "src/projection/universal.ts", "src/rendering/renderSemanticProjection.ts", "tests/universal-interaction.test.ts"],
+      "missing": ["typed spatial relation constraints", "3D camera and volume semantics"]
     },
     {
       "id": "documents",
       "examples": ["articles", "reports", "books", "code", "diffs", "annotations"],
-      "semanticPrimitives": ["content resource", "ordered block", "addressable range", "relation", "selection", "set"],
+      "semanticPrimitives": ["content resource", "ordered block", "addressable range", "anchor", "ordering", "transaction"],
       "status": "partial",
-      "evidence": ["src/schema/value.ts", "src/projection/universal.ts", "tests/universal-value.test.ts", "tests/universal-projection.test.ts"],
-      "missing": ["anchors and citations", "revision semantics", "adaptive document rendering"]
+      "evidence": ["src/schema/value.ts", "src/schema/interaction.ts", "src/projection/universal.ts", "src/rendering/renderSemanticProjection.ts", "src/state/pageState.ts", "tests/universal-interaction.test.ts"],
+      "missing": ["citation graph semantics", "multi-author revision and merge semantics"]
     },
     {
       "id": "media",
       "examples": ["images", "audio", "video", "transcripts", "waveforms", "captions"],
-      "semanticPrimitives": ["typed media resource", "track", "time range", "alternate representation", "scope", "selection"],
+      "semanticPrimitives": ["typed media resource", "track", "time range", "alternate representation", "playhead", "scope"],
       "status": "partial",
-      "evidence": ["src/schema/value.ts", "tests/universal-value.test.ts"],
-      "missing": ["playback state", "track relationship projection", "adaptive media rendering"]
+      "evidence": ["src/schema/value.ts", "src/schema/interaction.ts", "src/rendering/renderSemanticProjection.ts", "tests/universal-value.test.ts", "tests/universal-interaction.test.ts"],
+      "missing": ["host media playback adapter", "track synchronization and editing"]
     },
     {
       "id": "communication",
       "examples": ["chat", "email", "comments", "threads", "notifications", "presence"],
-      "semanticPrimitives": ["ordered stream", "author", "thread", "delivery state", "invoke"],
+      "semanticPrimitives": ["ordered stream", "author", "thread", "grouping", "delivery state", "invoke"],
       "status": "partial",
-      "evidence": ["src/projection/universal.ts", "tests/universal-projection.test.ts", "src/protocol/meaning.ts"],
-      "missing": ["delivery-state protocol", "thread topology projection", "presence state", "adaptive conversation rendering"]
+      "evidence": ["src/projection/universal.ts", "src/schema/interaction.ts", "src/rendering/renderSemanticProjection.ts", "tests/universal-interaction.test.ts", "src/protocol/meaning.ts"],
+      "missing": ["delivery-state protocol", "live presence and synchronization semantics"]
     },
     {
       "id": "simulation",
       "examples": ["editors", "CAD", "games", "digital twins", "scientific models", "what-if tools"],
-      "semanticPrimitives": ["object", "relation", "set", "invoke", "receipt"],
-      "status": "missing",
-      "missing": ["continuous state", "transaction groups", "undo-redo semantics", "viewport state", "simulation clocks"]
+      "semanticPrimitives": ["world state", "clock", "viewport", "transaction", "precondition", "conflict", "commit", "cancel", "undo", "redo", "receipt"],
+      "status": "partial",
+      "evidence": ["src/schema/interaction.ts", "src/state/pageState.ts", "src/protocol/interaction.ts", "src/rendering/renderPage.ts", "tests/universal-interaction.test.ts"],
+      "missing": ["continuous constraint solver contract", "deterministic external simulation adapter"]
     },
     {
       "id": "sensory-access",
       "examples": ["screen readers", "voice control", "switch access", "haptics", "braille", "reduced motion"],
-      "semanticPrimitives": ["label", "description", "role", "state", "affordance"],
+      "semanticPrimitives": ["label", "description", "role", "focus anchor", "state", "affordance", "alternate modality"],
       "status": "partial",
-      "evidence": ["src/rendering/renderPage.ts", "tests/e2e/semantic-surface.spec.ts"],
-      "missing": ["formal alternate modality contract", "focus restoration proof", "high contrast evidence", "assistive technology matrix"]
+      "evidence": ["src/rendering/renderPage.ts", "src/rendering/renderSemanticProjection.ts", "src/universal.css", "tests/universal-interaction.test.ts", "tests/e2e/semantic-surface.spec.ts"],
+      "missing": ["formal voice-switch-braille modality negotiation", "assistive technology conformance matrix"]
     },
     {
       "id": "authority-trust",
