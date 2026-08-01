@@ -1,10 +1,16 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { decodePagePayload } from "../src/encoding/pagePipeline";
+import {
+  appendMeaningSessionDelta,
+  createMeaningSession,
+  decodePagePayload,
+} from "../src/encoding/pagePipeline";
 import {
   buildInteractivePageShareUrl,
+  interactionLedgerFromMeaningSession,
   interactionLedgerFromPage,
   pageWithSharedInteractionState,
 } from "../src/encoding/shareableInteraction";
+import { createScopeDelta, type MeaningPacket } from "../src/protocol/meaning";
 import { validatePage } from "../src/schema/page";
 import {
   loadPageState,
@@ -68,6 +74,25 @@ describe("shareable interaction state", () => {
     expect(interactionLedgerFromPage(secondSnapshot).map((entry) => entry.label)).toEqual([
       "Select the test task",
       "Complete the shared task",
+    ]);
+  });
+
+  it("reconstructs readable human activity from an M1 URL session", () => {
+    const packet: MeaningPacket = [
+      1,
+      "pkt:share",
+      0,
+      null,
+      [],
+      [[0, [1, "Shareable session"], null, null, 0]],
+    ];
+    const session = appendMeaningSessionDelta(
+      createMeaningSession(packet),
+      createScopeDelta("pkt:share", 0, "period", "2026-07"),
+    );
+
+    expect(interactionLedgerFromMeaningSession(session).map((entry) => entry.label)).toEqual([
+      "Scope period = 2026-07",
     ]);
   });
 });
