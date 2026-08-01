@@ -3,6 +3,7 @@ import {
   appendMeaningSessionDelta,
   createMeaningSession,
   decodePagePayload,
+  encodeMeaningSession,
 } from "../src/encoding/pagePipeline";
 import {
   buildInteractivePageShareUrl,
@@ -50,6 +51,9 @@ describe("shareable interaction state", () => {
       "Select the test task",
       "Group tasks by completion",
     ]);
+    const ledgerObject = snapshot.objects.find((object) => object.id === "juanpager:activity");
+    expect(ledgerObject?.name).toBe("Human activity");
+    expect(ledgerObject?.fields).toHaveLength(3);
 
     const url = await buildInteractivePageShareUrl(page, state, "https://example.com/", "raw");
     const payload = new URL(url).hash.split("data=")[1] ?? "";
@@ -59,6 +63,7 @@ describe("shareable interaction state", () => {
       expect(decoded.page.objects[0]?.fields?.[0]?.value).toBe(true);
       expect(decoded.page.state?.selections?.tasks).toEqual(["task:one"]);
       expect(interactionLedgerFromPage(decoded.page)).toHaveLength(3);
+      expect(decoded.page.objects.some((object) => object.id === "juanpager:activity")).toBe(true);
     }
   });
 
@@ -75,9 +80,10 @@ describe("shareable interaction state", () => {
       "Select the test task",
       "Complete the shared task",
     ]);
+    expect(secondSnapshot.objects.filter((object) => object.id === "juanpager:activity")).toHaveLength(1);
   });
 
-  it("reconstructs readable human activity from an M1 URL session", () => {
+  it("reconstructs and renders readable human activity from an M1 URL session", async () => {
     const packet: MeaningPacket = [
       1,
       "pkt:share",
@@ -94,5 +100,12 @@ describe("shareable interaction state", () => {
     expect(interactionLedgerFromMeaningSession(session).map((entry) => entry.label)).toEqual([
       "Scope period = 2026-07",
     ]);
+
+    const decoded = await decodePagePayload(await encodeMeaningSession(session, "raw"), "raw");
+    expect(decoded.kind).toBe("m1-session");
+    if (decoded.kind === "m1-session") {
+      const ledgerObject = decoded.page.objects.find((object) => object.id === "juanpager:activity");
+      expect(ledgerObject?.fields?.[0]?.value).toContain("Scope period = 2026-07");
+    }
   });
 });
