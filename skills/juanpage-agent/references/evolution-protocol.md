@@ -7,9 +7,9 @@ Keep the JuanPage Agent aligned with the live protocol and improve it from real 
 ## Evolution states
 
 1. **Observed**: an agent failure, review finding, protocol change, or repeated friction is noticed.
-2. **Proposed**: a candidate JSON records one concise lesson and concrete evidence paths.
+2. **Proposed**: a candidate JSON records one concise lesson, the canonical snapshot digest, and immutable evidence digests.
 3. **Validated**: the candidate is checked against current source and supported by tests, a failing-then-passing reproduction, conformance evidence, or a validated example.
-4. **Promoted**: an explicit approver identity adds the lesson to `learned-patterns.md`.
+4. **Promoted**: an explicit approver identity adds the unchanged lesson to `learned-patterns.md`.
 5. **Retired**: a lesson is removed or superseded when canonical code changes.
 
 ## Candidate requirements
@@ -19,7 +19,8 @@ A candidate must contain:
 - a specific title;
 - one imperative, reusable lesson;
 - at least one repository-relative evidence path;
-- the current repository commit when available;
+- the Git blob digest of every evidence file;
+- the repository identity and current commit when available;
 - a snapshot digest tying it to the canonical source set;
 - creation time and status.
 
@@ -31,14 +32,16 @@ Bad lesson: “The last page looked wrong.”
 
 Promote only when all are true:
 
-- the evidence files still exist;
+- the candidate belongs to this repository;
+- the canonical snapshot exactly matches the snapshot reviewed at proposal time;
+- every evidence file still has the exact Git blob digest recorded at proposal time;
 - the lesson is not already present;
 - the lesson does not conflict with live source or tests;
 - the lesson generalizes beyond one naming or styling preference;
 - relevant verification passes;
 - a human or named reviewing agent explicitly approves promotion.
 
-Promotion never grants authority, changes protocol code, or bypasses repository review.
+If canonical source or evidence changes after proposal, do not promote the stale candidate. Re-review the new state and create a new candidate. Promotion never grants authority, changes protocol code, or bypasses repository review.
 
 ## Drift management
 
@@ -54,6 +57,16 @@ A drift result means “inspect and reconcile,” not “blindly rewrite the sna
 - no skill change because behavior was unaffected.
 
 Run `sync` after that decision. Commit the synchronized snapshot with the related source or skill update.
+
+## Verification
+
+Run the evolution regression suite after changing the loop:
+
+```bash
+python -m unittest discover -s skills/juanpage-agent/tests -p "test_*.py" -v
+```
+
+The suite must prove that valid candidates promote, canonical drift blocks promotion, evidence drift blocks promotion, and same-second proposals do not overwrite one another.
 
 ## Retirement
 
