@@ -4,6 +4,7 @@ export type FragmentParams = {
   version?: string;
   data?: string;
   encoding?: PagePayloadEncoding;
+  session?: string;
 };
 
 function parseEncoding(value: string | null): PagePayloadEncoding | undefined {
@@ -19,12 +20,14 @@ export function parseFragment(hash: string): FragmentParams {
   const data = params.get("data") ?? undefined;
   const version = params.get("v") ?? undefined;
   const encoding = parseEncoding(params.get("enc"));
+  const session = params.get("session") ?? undefined;
 
-  if (data || version) {
+  if (data || version || session) {
     return {
       data: data || undefined,
       version: version || undefined,
       encoding,
+      session: session || undefined,
     };
   }
 

@@ -1,7 +1,6 @@
 import {
   objectField,
   type JuanPageDocument,
-  type PageBindingTarget,
   type PageObject,
   type PageScalar,
   type PageValue,
@@ -64,6 +63,7 @@ export class PageTransactionConflictError extends Error {
 
 export type PageState = {
   values: Record<string, Record<string, PageScalar>>;
+  baseValues: Record<string, Record<string, PageScalar>>;
   scopes: Record<string, PageScalar>;
   selections: Record<string, string[]>;
   expansions: Record<string, string[]>;
@@ -73,12 +73,13 @@ export type PageState = {
   playheads: Record<string, number>;
   ordering: Record<string, string[]>;
   groupings: Record<string, string>;
+  queries: Record<string, string>;
+  filters: Record<string, PageScalar>;
+  panels: Record<string, string>;
   focus?: string;
   clocks: Record<string, PageClockState>;
   history: PageTransaction[];
   future: PageTransaction[];
-  inspection?: PageBindingTarget;
-  activeGroup?: string;
 };
 
 export type PageInteractionMutation =
@@ -94,12 +95,27 @@ function cloneStrings(values: readonly string[] | undefined): string[] {
   return values ? [...values] : [];
 }
 
+function scalar(value: PageValue | undefined): value is PageScalar {
+  return value === null || typeof value === "string" || typeof value === "boolean" || typeof value === "number";
+}
+
+function originalScalarValues(page: JuanPageDocument): Record<string, Record<string, PageScalar>> {
+  const result: Record<string, Record<string, PageScalar>> = {};
+  for (const object of page.objects) {
+    const fields: Record<string, PageScalar> = {};
+    for (const field of object.fields ?? []) if (scalar(field.value)) fields[field.key] = field.value;
+    if (Object.keys(fields).length) result[object.id] = fields;
+  }
+  return result;
+}
+
 function initialState(page: JuanPageDocument): PageState {
   const scopes: Record<string, PageScalar> = {};
   for (const scope of page.scopes ?? []) if (scope.initial !== undefined) scopes[scope.id] = scope.initial;
   Object.assign(scopes, page.state?.scopes ?? {});
   return {
     values: {},
+    baseValues: originalScalarValues(page),
     scopes,
     selections: Object.fromEntries(Object.entries(page.state?.selections ?? {}).map(([name, values]) => [name, [...values]])),
     expansions: Object.fromEntries(Object.entries(page.state?.expansions ?? {}).map(([name, values]) => [name, [...values]])),
@@ -109,6 +125,9 @@ function initialState(page: JuanPageDocument): PageState {
     playheads: { ...(page.state?.playheads ?? {}) },
     ordering: Object.fromEntries(Object.entries(page.state?.ordering ?? {}).map(([name, values]) => [name, [...values]])),
     groupings: { ...(page.state?.groupings ?? {}) },
+    queries: { ...(page.state?.queries ?? {}) },
+    filters: { ...(page.state?.filters ?? {}) },
+    panels: { ...(page.state?.panels ?? {}) },
     focus: page.state?.focus,
     clocks: structuredClone(page.state?.clocks ?? {}),
     history: [],
@@ -141,6 +160,9 @@ function interactionSnapshot(state: Partial<PageState>): Record<string, unknown>
     playheads: state.playheads,
     ordering: state.ordering,
     groupings: state.groupings,
+    queries: state.queries,
+    filters: state.filters,
+    panels: state.panels,
     focus: state.focus,
     clocks: state.clocks,
   };
@@ -167,11 +189,20 @@ export function loadPageState(key: string, page: JuanPageDocument): PageState {
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return fallback;
-    const parsed = JSON.parse(raw) as Partial<PageState>;
+    const parsed = JSON.parse(raw) as Partial<PageState> & { inspection?: unknown; activeGroup?: unknown };
     const interaction = pageInteractionStateSchema.safeParse(interactionSnapshot(parsed));
     const restored = interaction.success ? interaction.data : {};
+    const migratedPanels = { ...fallback.panels, ...(restored.panels ?? {}) };
+    if (!migratedPanels.inspector && parsed.inspection && typeof parsed.inspection === "object") {
+      migratedPanels.inspector = JSON.stringify(parsed.inspection);
+    }
+    const migratedFilters = { ...fallback.filters, ...(restored.filters ?? {}) };
+    if (migratedFilters.group === undefined && typeof parsed.activeGroup === "string" && parsed.activeGroup !== "all") {
+      migratedFilters.group = parsed.activeGroup;
+    }
     return {
       values: parsed.values && typeof parsed.values === "object" ? parsed.values : {},
+      baseValues: fallback.baseValues,
       scopes: { ...fallback.scopes, ...(restored.scopes ?? {}) },
       selections: Object.fromEntries(Object.entries(restored.selections ?? fallback.selections).map(([name, values]) => [name, [...values]])),
       expansions: Object.fromEntries(Object.entries(restored.expansions ?? fallback.expansions).map(([name, values]) => [name, [...values]])),
@@ -181,12 +212,13 @@ export function loadPageState(key: string, page: JuanPageDocument): PageState {
       playheads: { ...fallback.playheads, ...(restored.playheads ?? {}) },
       ordering: Object.fromEntries(Object.entries(restored.ordering ?? fallback.ordering).map(([name, values]) => [name, [...values]])),
       groupings: { ...fallback.groupings, ...(restored.groupings ?? {}) },
+      queries: { ...fallback.queries, ...(restored.queries ?? {}) },
+      filters: migratedFilters,
+      panels: migratedPanels,
       focus: restored.focus ?? fallback.focus,
       clocks: structuredClone(restored.clocks ?? fallback.clocks),
       history: validTransactions(parsed.history),
       future: validTransactions(parsed.future),
-      inspection: parsed.inspection && typeof parsed.inspection === "object" ? parsed.inspection : undefined,
-      activeGroup: typeof parsed.activeGroup === "string" ? parsed.activeGroup : undefined,
     };
   } catch {
     return fallback;
@@ -220,8 +252,14 @@ function interactionValue(state: PageState, domain: PageInteractionDomain, key: 
   return cloneInteractionValue(interactionRecord(state, domain)[key]);
 }
 
+function currentScalarValue(state: PageState, target: string, field: string): PageScalar | undefined {
+  const fields = state.values[target];
+  if (fields && Object.prototype.hasOwnProperty.call(fields, field)) return fields[field];
+  return state.baseValues[target]?.[field];
+}
+
 function patchValue(state: PageState, patch: PageStatePatch): unknown {
-  if (patch.domain === "value") return state.values[patch.target]?.[patch.field];
+  if (patch.domain === "value") return currentScalarValue(state, patch.target, patch.field);
   if (patch.domain === "scope") return state.scopes[patch.key];
   if (patch.domain === "selection") return state.selections[patch.key];
   return interactionValue(state, patch.state, patch.key);
@@ -321,7 +359,7 @@ export function effectivePageObjects(page: JuanPageDocument, state: PageState): 
 }
 
 export function setPageValue(state: PageState, target: string, field: string, value: PageScalar, label = `Set ${field}`): void {
-  const before = state.values[target]?.[field];
+  const before = currentScalarValue(state, target, field);
   if (equal(before, value)) return;
   commitSingle(state, label, { domain: "value", target, field, before, after: value }, { kind: "set", target, field, value });
 }
@@ -404,6 +442,61 @@ export function redoPageTransaction(state: PageState): PageTransaction | undefin
   return transaction;
 }
 
+export function resetPageToInitial(
+  state: PageState,
+  page: JuanPageDocument,
+  label = "Reset page",
+): PageTransaction | undefined {
+  const target = initialState(page);
+  const patches: PageStatePatch[] = [];
+
+  for (const [objectId, fields] of Object.entries(state.values)) {
+    for (const [field, before] of Object.entries(fields)) {
+      patches.push({ domain: "value", target: objectId, field, before, after: target.baseValues[objectId]?.[field] });
+    }
+  }
+
+  for (const key of new Set([...Object.keys(state.scopes), ...Object.keys(target.scopes)])) {
+    const before = state.scopes[key];
+    const after = target.scopes[key];
+    if (!equal(before, after)) patches.push({ domain: "scope", key, before, after });
+  }
+
+  for (const key of new Set([...Object.keys(state.selections), ...Object.keys(target.selections)])) {
+    const before = state.selections[key] === undefined ? undefined : [...state.selections[key]];
+    const after = target.selections[key] === undefined ? undefined : [...target.selections[key]];
+    if (!equal(before, after)) patches.push({ domain: "selection", key, before, after });
+  }
+
+  const domains: Exclude<PageInteractionDomain, "focus">[] = [
+    "expansions",
+    "paths",
+    "viewports",
+    "ranges",
+    "playheads",
+    "ordering",
+    "groupings",
+    "queries",
+    "filters",
+    "panels",
+    "clocks",
+  ];
+  for (const domain of domains) {
+    const currentRecord = interactionRecord(state, domain);
+    const targetRecord = interactionRecord(target, domain);
+    for (const key of new Set([...Object.keys(currentRecord), ...Object.keys(targetRecord)])) {
+      const before = interactionValue(state, domain, key);
+      const after = interactionValue(target, domain, key);
+      if (!equal(before, after)) patches.push({ domain: "interaction", state: domain, key, before, after });
+    }
+  }
+  if (!equal(state.focus, target.focus)) {
+    patches.push({ domain: "interaction", state: "focus", key: "active", before: state.focus, after: target.focus });
+  }
+  if (!patches.length) return undefined;
+  return commitPageTransaction(state, createPageTransaction(label, patches));
+}
+
 export function pageInteractionSnapshot(state: PageState): import("../schema/interaction.js").PageInteractionState {
   return {
     scopes: { ...state.scopes },
@@ -415,6 +508,9 @@ export function pageInteractionSnapshot(state: PageState): import("../schema/int
     playheads: { ...state.playheads },
     ordering: Object.fromEntries(Object.entries(state.ordering).map(([key, values]) => [key, [...values]])),
     groupings: { ...state.groupings },
+    queries: { ...state.queries },
+    filters: { ...state.filters },
+    panels: { ...state.panels },
     focus: state.focus,
     clocks: structuredClone(state.clocks),
   };

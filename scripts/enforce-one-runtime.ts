@@ -148,7 +148,7 @@ for (const tag of ["instant", "interval", "duration", "recurrence", "coordinate"
 if (valueSchema.includes("innerHTML") || valueSchema.includes("componentType") || valueSchema.includes("render:")) failures.push("Universal values must remain data-only and may not carry executable or component rendering instructions.");
 
 const interactionSchema = await readFile("src/schema/interaction.ts", "utf8");
-for (const domain of ["expansions", "paths", "viewports", "ranges", "playheads", "ordering", "groupings", "focus", "clocks"] as const) if (!interactionSchema.includes(`"${domain}"`)) failures.push(`The universal interaction state is missing ${domain}.`);
+for (const domain of ["expansions", "paths", "viewports", "ranges", "playheads", "ordering", "groupings", "queries", "filters", "panels", "focus", "clocks"] as const) if (!interactionSchema.includes(`"${domain}"`)) failures.push(`The universal interaction state is missing ${domain}.`);
 
 const projectionKernel = await readFile("src/projection/universal.ts", "utf8");
 for (const family of ["categorical", "temporal", "matrix", "hierarchy", "network", "spatial", "document", "stream"] as const) if (!projectionKernel.includes(`z.literal("${family}")`)) failures.push(`The generalized projection algebra is missing ${family}.`);

@@ -6,6 +6,7 @@ import {
   formatSemanticValue,
   humanizeKey,
   isSemanticValue,
+  pageBindingTargetSchema,
   pageObject,
   type JuanPageDocument,
   type LegacyPageProjection,
@@ -30,7 +31,7 @@ import {
   pageInteractionSnapshot,
   pageStateKey,
   redoPageTransaction,
-  resetPageState,
+  resetPageToInitial,
   savePageState,
   setPageFocus,
   setPageInteractionState,
@@ -114,6 +115,20 @@ function targetKey(target: PageBindingTarget): string {
   if (target.kind === "metric") return `metric:${target.metric}`;
   if (target.kind === "relation") return `relation:${target.relation}`;
   return `projection:${target.projection}`;
+}
+
+function serializeTarget(target: PageBindingTarget): string {
+  return JSON.stringify(target);
+}
+
+function parseTarget(value: string | undefined): PageBindingTarget | undefined {
+  if (!value) return undefined;
+  try {
+    const result = pageBindingTargetSchema.safeParse(JSON.parse(value));
+    return result.success ? result.data : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function sameValue(left: unknown, right: unknown): boolean {
@@ -242,25 +257,6 @@ function bindingObjectId(target: PageBindingTarget): string | undefined {
   return target.kind === "object" || target.kind === "field" ? target.object : undefined;
 }
 
-function copyState(target: PageState, source: PageState): void {
-  target.values = source.values;
-  target.scopes = source.scopes;
-  target.selections = source.selections;
-  target.expansions = source.expansions;
-  target.paths = source.paths;
-  target.viewports = source.viewports;
-  target.ranges = source.ranges;
-  target.playheads = source.playheads;
-  target.ordering = source.ordering;
-  target.groupings = source.groupings;
-  target.focus = source.focus;
-  target.clocks = source.clocks;
-  target.history = source.history;
-  target.future = source.future;
-  target.inspection = source.inspection;
-  target.activeGroup = source.activeGroup;
-}
-
 export function renderPage(page: JuanPageDocument, mount: HTMLElement, options: UniversalRenderOptions = {}): RenderHandle {
   applyTheme(page.theme);
   document.title = `${page.title} · JuanPager`;
@@ -272,7 +268,6 @@ export function renderPage(page: JuanPageDocument, mount: HTMLElement, options: 
     const key = targetKey(binding.target);
     bindings.set(key, [...(bindings.get(key) ?? []), binding]);
   }
-  let query = "";
 
   const persist = (): void => savePageState(storageKey, state);
   const bound = (target: PageBindingTarget): BoundAffordance[] => {
@@ -314,7 +309,7 @@ export function renderPage(page: JuanPageDocument, mount: HTMLElement, options: 
   const run = async (affordance: PageAffordance, binding: PageBinding, value?: PageScalar, host?: HTMLElement): Promise<void> => {
     const effect = affordance.effect;
     if (effect.kind === "inspect") {
-      state.inspection = binding.target;
+      setPageInteractionState(state, "panels", "inspector", serializeTarget(binding.target), affordance.label);
       persist();
       draw();
       await notify(affordance, binding, value);
@@ -444,7 +439,9 @@ export function renderPage(page: JuanPageDocument, mount: HTMLElement, options: 
   };
 
   const visibleObjects = (): PageObject[] => scopedObjects(page, state).filter((object) => {
-    const groupVisible = !state.activeGroup || state.activeGroup === "all" || (object.group ?? "Other") === state.activeGroup;
+    const activeGroup = typeof state.filters.group === "string" ? state.filters.group : undefined;
+    const query = state.queries.objects?.trim().toLowerCase() ?? "";
+    const groupVisible = !activeGroup || activeGroup === "all" || (object.group ?? "Other") === activeGroup;
     return groupVisible && (!query || objectText(object, state).includes(query));
   });
 
@@ -571,7 +568,11 @@ export function renderPage(page: JuanPageDocument, mount: HTMLElement, options: 
   const inspector = (target: PageBindingTarget): HTMLElement => {
     const panel = el("aside", { className: "jp-u-inspector", attrs: { "aria-label": "Details" } });
     const close = el("button", { className: "jp-u-close", text: "Close", attrs: { type: "button" } });
-    close.addEventListener("click", () => { state.inspection = undefined; persist(); draw(); });
+    close.addEventListener("click", () => {
+      setPageInteractionState(state, "panels", "inspector", undefined, "Close inspector");
+      persist();
+      draw();
+    });
     append(panel, close);
     if (target.kind === "page") {
       append(panel, el("p", { className: "jp-u-type", text: "Page" }), el("h2", { text: page.title }));
@@ -628,12 +629,7 @@ export function renderPage(page: JuanPageDocument, mount: HTMLElement, options: 
     for (const [clockId, clock] of entries) {
       const row = el("div", { className: "jp-u-clock", attrs: { "data-clock-id": clockId } });
       const time = el("output", { className: "jp-u-clock-time", text: formatNumber(clock.time, "number") });
-      const toggleAnchor = `clock:${clockId}:toggle`;
-      const toggle = el("button", { className: "jp-u-button", text: clock.paused ? "Run" : "Pause", attrs: { type: "button", "data-focus-anchor": toggleAnchor } });
-      toggle.addEventListener("click", () => {
-        setPageInteractionState(state, "clocks", clockId, { ...clock, paused: !clock.paused }, `${clock.paused ? "Run" : "Pause"} ${clockId}`, toggleAnchor);
-        persist(); draw();
-      });
+      const mode = el("span", { className: "jp-u-clock-mode", text: clock.paused ? "Paused" : "Externally driven" });
       const stepAnchor = `clock:${clockId}:step`;
       const step = el("button", { className: "jp-u-button", text: "Step", attrs: { type: "button", "data-focus-anchor": stepAnchor } });
       step.addEventListener("click", () => {
@@ -642,7 +638,7 @@ export function renderPage(page: JuanPageDocument, mount: HTMLElement, options: 
       });
       const rate = el("input", { attrs: { type: "number", min: -100, max: 100, step: .1, value: clock.rate, "aria-label": `${clockId} rate` } }) as HTMLInputElement;
       rate.addEventListener("change", () => { setPageInteractionState(state, "clocks", clockId, { ...clock, rate: Number(rate.value) }, `Set ${clockId} rate`); persist(); draw(); });
-      append(row, el("strong", { text: humanizeKey(clockId) }), time, toggle, step, rate);
+      append(row, el("strong", { text: humanizeKey(clockId) }), time, mode, step, rate);
       append(section, row);
     }
     return section;
@@ -680,15 +676,36 @@ export function renderPage(page: JuanPageDocument, mount: HTMLElement, options: 
         announce(header, "Redo blocked because the current state no longer matches the recorded transaction");
       }
     });
+    const runtimeStatus = el("p", { className: "jp-u-runtime-status", attrs: { role: "status", "aria-live": "polite" } });
     const share = el("button", { className: "jp-u-button jp-u-primary", text: "Share", attrs: { type: "button" } });
-    share.addEventListener("click", () => { void (async () => { const url = options.onShare ? await options.onShare() : window.location.href; await navigator.clipboard.writeText(url); announce(header, "Share link copied"); })(); });
+    share.addEventListener("click", () => {
+      void (async () => {
+        try {
+          const url = options.onShare ? await options.onShare() : window.location.href;
+          await navigator.clipboard.writeText(url);
+          runtimeStatus.textContent = "Share link copied. It contains the current human state.";
+          runtimeStatus.className = "jp-u-runtime-status is-success";
+          announce(header, "Share link copied");
+        } catch (error) {
+          runtimeStatus.textContent = `Share failed: ${error instanceof Error ? error.message : String(error)}`;
+          runtimeStatus.className = "jp-u-runtime-status is-error";
+          announce(header, "Share failed");
+        }
+      })();
+    });
     const reset = el("button", { className: "jp-u-button is-quiet", text: "Reset", attrs: { type: "button" } });
-    reset.addEventListener("click", () => { resetPageState(storageKey); copyState(state, loadPageState(storageKey, page)); query = ""; draw(); });
+    reset.addEventListener("click", () => {
+      const transaction = resetPageToInitial(state, page);
+      persist();
+      draw();
+      if (transaction) announce(header, `Reset ${transaction.patches.length} state change${transaction.patches.length === 1 ? "" : "s"}`);
+    });
     append(utility, undo, redo, share, reset);
     append(top, brand, utility);
     append(header, top, el("h1", { text: page.title }));
     if (page.intent) append(header, el("p", { className: "jp-u-intent", text: page.intent }));
     if (page.description) append(header, el("p", { className: "jp-u-description", text: page.description }));
+    append(header, runtimeStatus);
     if (page.metrics?.length) {
       const metrics = el("div", { className: "jp-u-metrics" });
       for (const metric of page.metrics) append(metrics, metricView(metric));
@@ -698,8 +715,13 @@ export function renderPage(page: JuanPageDocument, mount: HTMLElement, options: 
     const controls = el("div", { className: "jp-u-controls" });
     for (const entry of bound({ kind: "page" })) append(controls, control(entry));
     if (page.objects.length > 6) {
-      const search = el("input", { attrs: { type: "search", placeholder: "Search", value: query, "aria-label": "Search objects" } }) as HTMLInputElement;
-      search.addEventListener("input", () => { query = search.value.trim().toLowerCase(); draw(); });
+      const searchAnchor = "query:objects";
+      const search = el("input", { attrs: { type: "search", placeholder: "Search", value: state.queries.objects ?? "", "aria-label": "Search objects", "data-focus-anchor": searchAnchor } }) as HTMLInputElement;
+      search.addEventListener("input", () => {
+        setPageInteractionState(state, "queries", "objects", search.value || undefined, "Search objects", searchAnchor);
+        persist();
+        draw();
+      });
       append(controls, search);
     }
     const groupNames = [...new Set(scopedObjects(page, state).map((object) => object.group ?? "Other"))];
@@ -707,8 +729,14 @@ export function renderPage(page: JuanPageDocument, mount: HTMLElement, options: 
       const select = el("select", { attrs: { "aria-label": "Filter group" } }) as HTMLSelectElement;
       append(select, el("option", { text: "All groups", attrs: { value: "all" } }));
       for (const group of groupNames) append(select, el("option", { text: group, attrs: { value: group } }));
-      select.value = state.activeGroup ?? "all";
-      select.addEventListener("change", () => { state.activeGroup = select.value; persist(); draw(); });
+      const groupAnchor = "filter:group";
+      select.setAttribute("data-focus-anchor", groupAnchor);
+      select.value = typeof state.filters.group === "string" ? state.filters.group : "all";
+      select.addEventListener("change", () => {
+        setPageInteractionState(state, "filters", "group", select.value === "all" ? undefined : select.value, "Filter group", groupAnchor);
+        persist();
+        draw();
+      });
       append(controls, select);
     }
     for (const [scopeId, value] of Object.entries(state.scopes)) {
@@ -763,7 +791,8 @@ export function renderPage(page: JuanPageDocument, mount: HTMLElement, options: 
     append(root, header);
     if (controls.childElementCount) append(root, controls);
     append(root, workspace);
-    if (state.inspection) append(root, inspector(state.inspection));
+    const activeInspection = parseTarget(state.panels.inspector);
+    if (activeInspection) append(root, inspector(activeInspection));
     mount.replaceChildren(root);
     if (state.focus) {
       const candidate = [...mount.querySelectorAll<HTMLElement>("[data-focus-anchor]")].find((element) => element.dataset.focusAnchor === state.focus);

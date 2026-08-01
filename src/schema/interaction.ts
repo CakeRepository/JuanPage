@@ -25,6 +25,9 @@ export const pageInteractionDomainSchema = z.enum([
   "playheads",
   "ordering",
   "groupings",
+  "queries",
+  "filters",
+  "panels",
   "focus",
   "clocks",
 ]);
@@ -46,6 +49,9 @@ export const pageInteractionStateSchema = z.object({
   playheads: z.record(z.number().finite()).optional(),
   ordering: z.record(z.array(id).max(200)).optional(),
   groupings: z.record(id).optional(),
+  queries: z.record(z.string().max(500)).optional(),
+  filters: z.record(pageScalarSchema).optional(),
+  panels: z.record(z.string().max(1000)).optional(),
   focus: id.optional(),
   clocks: z.record(pageClockStateSchema).optional(),
 }).strict();

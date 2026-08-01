@@ -16,6 +16,10 @@ import {
 } from "../protocol/meaning.js";
 import { interactionStateFromPageDeltas } from "../protocol/interaction.js";
 import { materializeUntrustedMeaningPacket } from "../protocol/trust-projection.js";
+import {
+  interactionLedgerFromMeaningDeltas,
+  withInteractionLedgerObject,
+} from "../interaction/ledger.js";
 
 export type PagePayloadEncoding = "gz" | "raw";
 export const DEFAULT_PAGE_ENCODING: PagePayloadEncoding = "gz";
@@ -177,9 +181,11 @@ function materializeRecordOnlySession(
   const allowedAffordances = (projected.affordances ?? []).filter((affordance) => affordance.effect.kind !== "navigate");
   const allowedIds = new Set(allowedAffordances.map((affordance) => affordance.id));
   const interactionState = interactionStateFromPageDeltas(session.deltas);
+  const activity = interactionLedgerFromMeaningDeltas(session.deltas);
   const notice = "This is a record-only URL session. Your scopes, selections, edits, viewports, ranges, playheads, paths, clocks, and reversible transactions are stored as typed deltas in the Share link; nothing executes remotely from this page.";
   const page = validatePage({
     ...projected,
+    objects: withInteractionLedgerObject(projected.objects, activity),
     description: projected.description ? `${projected.description} ${notice}` : notice,
     affordances: allowedAffordances,
     bindings: projected.bindings?.filter((binding) => allowedIds.has(binding.affordance)),

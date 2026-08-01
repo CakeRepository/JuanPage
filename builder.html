@@ -2,19 +2,26 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; connect-src 'self'; font-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'"
     />
     <meta name="color-scheme" content="light dark" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="theme-color" content="#08090d" />
     <title>JuanPager Builder · JuanPage 2.0</title>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/juan-icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/juan-icon.svg" />
     <link rel="stylesheet" href="/src/universal.css" />
     <script src="/config.js"></script>
   </head>
   <body>
     <div id="builder-app"></div>
+    <script type="module" src="/src/pwa-entry.ts"></script>
     <script type="module" src="/src/builder.ts"></script>
   </body>
 </html>
