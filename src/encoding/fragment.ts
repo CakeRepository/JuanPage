@@ -49,7 +49,7 @@ export function getAppBasePath(): string {
 
   if (configured) return configured.endsWith("/") ? configured : `${configured}/`;
 
-  const viteBase = import.meta.env.BASE_URL || "/";
+  const viteBase = (import.meta as ImportMeta & { env?: { BASE_URL?: string } }).env?.BASE_URL ?? "/";
   return viteBase.endsWith("/") ? viteBase : `${viteBase}/`;
 }
 
