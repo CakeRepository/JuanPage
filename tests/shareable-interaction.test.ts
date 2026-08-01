@@ -11,7 +11,8 @@ import {
   interactionLedgerFromPage,
   pageWithSharedInteractionState,
 } from "../src/encoding/shareableInteraction";
-import { createScopeDelta, type MeaningPacket } from "../src/protocol/meaning";
+import { operationsControlRoomPacket } from "../src/examples/operations-control-room";
+import { createScopeDelta } from "../src/protocol/meaning";
 import { validatePage } from "../src/schema/page";
 import {
   loadPageState,
@@ -84,28 +85,20 @@ describe("shareable interaction state", () => {
   });
 
   it("reconstructs and renders readable human activity from an M1 URL session", async () => {
-    const packet: MeaningPacket = [
-      1,
-      "pkt:share",
-      0,
-      null,
-      [],
-      [[0, [1, "Shareable session"], null, null, 0]],
-    ];
     const session = appendMeaningSessionDelta(
-      createMeaningSession(packet),
-      createScopeDelta("pkt:share", 0, "period", "2026-07"),
+      createMeaningSession(operationsControlRoomPacket),
+      createScopeDelta("pkt:demo:operations", 20, "prop:period", "2026-06"),
     );
 
     expect(interactionLedgerFromMeaningSession(session).map((entry) => entry.label)).toEqual([
-      "Scope period = 2026-07",
+      "Scope prop:period = 2026-06",
     ]);
 
     const decoded = await decodePagePayload(await encodeMeaningSession(session, "raw"), "raw");
     expect(decoded.kind).toBe("m1-session");
     if (decoded.kind === "m1-session") {
       const ledgerObject = decoded.page.objects.find((object) => object.id === "juanpager:activity");
-      expect(ledgerObject?.fields?.[0]?.value).toContain("Scope period = 2026-07");
+      expect(ledgerObject?.fields?.[0]?.value).toContain("Scope prop:period = 2026-06");
     }
   });
 });
