@@ -6,6 +6,7 @@ import {
   validatePage,
   type JuanPageDocument,
 } from "../schema/page.js";
+import { LIMITS } from "../schema/limits.js";
 import {
   effectivePageObjects,
   pageInteractionSnapshot,
@@ -45,6 +46,16 @@ function transactionEntry(transaction: PageTransaction): SharedInteractionEntry 
   };
 }
 
+function encodedLedger(entries: readonly SharedInteractionEntry[]): string {
+  let bounded = [...entries].slice(-MAX_SHARED_INTERACTIONS);
+  let encoded = JSON.stringify(bounded);
+  while (encoded.length > LIMITS.maxTextLength && bounded.length > 1) {
+    bounded = bounded.slice(1);
+    encoded = JSON.stringify(bounded);
+  }
+  return encoded;
+}
+
 export function interactionLedgerFromPage(page: JuanPageDocument): SharedInteractionEntry[] {
   const encoded = page.metadata?.[INTERACTION_LEDGER_METADATA_KEY];
   if (typeof encoded !== "string") return [];
@@ -76,14 +87,16 @@ export function pageWithSharedInteractionState(
   activity: readonly SharedInteractionEntry[] = [],
 ): JuanPageDocument {
   const ledger = sharedInteractionLedger(page, state, activity);
+  const encoded = encodedLedger(ledger);
+  const persistedLedger = JSON.parse(encoded) as SharedInteractionEntry[];
   return validatePage({
     ...page,
     objects: effectivePageObjects(page, state),
     state: pageInteractionSnapshot(state),
     metadata: {
       ...(page.metadata ?? {}),
-      [INTERACTION_LEDGER_METADATA_KEY]: JSON.stringify(ledger),
-      [INTERACTION_COUNT_METADATA_KEY]: ledger.length,
+      [INTERACTION_LEDGER_METADATA_KEY]: encoded,
+      [INTERACTION_COUNT_METADATA_KEY]: persistedLedger.length,
       [INTERACTION_SHARE_MODE_METADATA_KEY]: "state-and-ledger",
     },
   });
