@@ -5,6 +5,7 @@ export * from "./protocol/interaction.js";
 export * from "./protocol/envelope.js";
 export * from "./protocol/trust-projection.js";
 export * from "./encoding/pagePipeline.js";
+export * from "./encoding/shareableInteraction.js";
 export * from "./state/pageState.js";
 export * from "./rendering/renderPage.js";
 export * from "./transport/adapters.js";
