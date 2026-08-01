@@ -2,12 +2,7 @@ import { z } from "zod";
 import { DocumentValidationError } from "./errors.js";
 import { LIMITS } from "./limits.js";
 import { isAllowedUrl } from "./url.js";
-import {
-  pageScalarSchema,
-  pageValueSchema,
-  type PageScalar,
-  type PageValue,
-} from "./value.js";
+import { pageScalarSchema, pageValueSchema } from "./value.js";
 
 export {
   pageScalarSchema,
