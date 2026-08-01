@@ -1,5 +1,6 @@
 import {
   buildPageShareUrl,
+  type MeaningSession,
   type PagePayloadEncoding,
 } from "./pagePipeline.js";
 import {
@@ -56,6 +57,40 @@ function encodedLedger(entries: readonly SharedInteractionEntry[]): string {
   return encoded;
 }
 
+function mutationLabel(mutation: readonly unknown[]): string {
+  const opcode = Number(mutation[0]);
+  if (opcode === 20) return `Set ${String(mutation[1])}.${String(mutation[2])}`;
+  if (opcode === 21) return `Remove ${String(mutation[1])}.${String(mutation[2])}`;
+  if (opcode === 22) return `Scope ${String(mutation[1])} = ${String(mutation[2])}`;
+  if (opcode === 23) return `Clear scope ${String(mutation[1])}`;
+  if (opcode === 24) {
+    const values = Array.isArray(mutation[2]) ? mutation[2].map(String).join(", ") : "";
+    return `Select ${String(mutation[1])}${values ? `: ${values}` : ""}`;
+  }
+  if (opcode >= 30 && opcode <= 34) return `Action ${String(mutation[3])}`;
+  if (opcode === 35 || opcode === 36) return `Result ${String(mutation[2])}`;
+  return `M1 mutation ${opcode}`;
+}
+
+export function interactionLedgerFromMeaningSession(session: MeaningSession): SharedInteractionEntry[] {
+  const entries: SharedInteractionEntry[] = [];
+  for (const [deltaIndex, delta] of session.deltas.entries()) {
+    for (const [mutationIndex, mutation] of delta[4].entries()) {
+      const cells = mutation as readonly unknown[];
+      const timestamp = typeof cells[7] === "string"
+        ? cells[7]
+        : new Date(deltaIndex * 1000 + mutationIndex).toISOString();
+      entries.push({
+        id: `m1:${delta[2]}:${deltaIndex}:${mutationIndex}`,
+        label: mutationLabel(cells),
+        timestamp,
+        patches: 1,
+      });
+    }
+  }
+  return entries.slice(-MAX_SHARED_INTERACTIONS);
+}
+
 export function interactionLedgerFromPage(page: JuanPageDocument): SharedInteractionEntry[] {
   const encoded = page.metadata?.[INTERACTION_LEDGER_METADATA_KEY];
   if (typeof encoded !== "string") return [];
@@ -76,9 +111,7 @@ export function sharedInteractionLedger(
   for (const entry of interactionLedgerFromPage(page)) merged.set(entry.id, entry);
   const current = activity.length ? activity : state.history.map(transactionEntry);
   for (const entry of current) merged.set(entry.id, entry);
-  return [...merged.values()]
-    .sort((left, right) => left.timestamp.localeCompare(right.timestamp))
-    .slice(-MAX_SHARED_INTERACTIONS);
+  return [...merged.values()].slice(-MAX_SHARED_INTERACTIONS);
 }
 
 export function pageWithSharedInteractionState(
