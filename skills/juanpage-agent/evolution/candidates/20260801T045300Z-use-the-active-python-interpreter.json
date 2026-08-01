@@ -1,0 +1,22 @@
+{
+  "approved_by": "juanpage-agent:self-evolution-audit-2",
+  "created_at": "2026-08-01T04:53:00Z",
+  "evidence": [
+    ".github/workflows/ci.yml",
+    "skills/juanpage-agent/tests/test_evolve.py"
+  ],
+  "evidence_blobs": {
+    ".github/workflows/ci.yml": "47d5df59e867a66a29d623b4a2b5ff95e191c1a9",
+    "skills/juanpage-agent/tests/test_evolve.py": "1443dc175184e516c015b44b5553c680cfc0f574"
+  },
+  "id": "20260801T045300Z-use-the-active-python-interpreter",
+  "lesson": "When an evolution test or helper launches Python, invoke sys.executable rather than a bare python command so it uses the validated interpreter and does not depend on a PATH alias.",
+  "lesson_fingerprint": "lesson:308b3614a62a9626",
+  "promoted_at": "2026-08-01T04:54:00Z",
+  "repository": "CakeRepository/juanpager",
+  "repository_commit": "338ab99b936de0e9c53b68656cecc7c85cbd981d",
+  "snapshot_digest": "c765489dc701d9e4b203be0a445c7e4faf70499fce136cc316b66b86f8840e73",
+  "status": "promoted",
+  "title": "Use the active Python interpreter",
+  "version": 2
+}

@@ -1,0 +1,3 @@
+interface:
+  display_name: "JuanPage Agent"
+  short_description: "Generate and return hosted JuanPage interfaces"
