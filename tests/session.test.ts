@@ -35,10 +35,12 @@ describe("durable agent-human sessions", () => {
     );
   });
 
-  it("enforces optimistic revision conflicts", async () => {
+  it("enforces atomic creation and optimistic revision conflicts", async () => {
     const store = new MemoryAgentHumanSessionStore();
     const original = createAgentHumanSession({ id: "session:conflict", document: page });
-    await store.put(original);
+    await store.put(original, null);
+    await expect(store.put(original, null)).rejects.toBeInstanceOf(AgentHumanSessionConflictError);
+
     const first = advanceAgentHumanSession(original, { status: "completed" });
     await store.put(first, original.revision);
     const stale = advanceAgentHumanSession(original, { status: "cancelled" });
@@ -48,7 +50,7 @@ describe("durable agent-human sessions", () => {
   it("survives app restarts in browser storage", async () => {
     const store = new BrowserAgentHumanSessionStore();
     const original = createAgentHumanSession({ id: "session:offline", document: page });
-    await store.put(original);
+    await store.put(original, null);
     const restored = await new BrowserAgentHumanSessionStore().get(original.id);
     expect(restored).toEqual(original);
   });
