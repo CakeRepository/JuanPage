@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -41,10 +43,16 @@ class EvolveCliTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.temp.cleanup()
 
-    def run_cli(self, command: str, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
+    def run_cli(
+        self,
+        command: str,
+        *args: str,
+        check: bool = True,
+        env: dict[str, str] | None = None,
+    ) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
             [
-                "python", str(self.script), command,
+                sys.executable, str(self.script), command,
                 "--repo", str(self.repo),
                 "--manifest", str(self.manifest),
                 *args,
@@ -52,6 +60,7 @@ class EvolveCliTests(unittest.TestCase):
             check=check,
             capture_output=True,
             text=True,
+            env=env,
         )
 
     def propose(self, title: str = "Preserve evidence integrity") -> Path:
@@ -72,6 +81,21 @@ class EvolveCliTests(unittest.TestCase):
             "--lessons", str(self.lessons),
             check=check,
         )
+
+    def test_cli_does_not_require_python_alias(self) -> None:
+        isolated_bin = self.repo / "isolated-bin"
+        isolated_bin.mkdir()
+        git = shutil.which("git")
+        self.assertIsNotNone(git)
+        (isolated_bin / "git").symlink_to(git)
+        env = os.environ.copy()
+        env["PATH"] = str(isolated_bin)
+        result = self.run_cli(
+            "check",
+            "--snapshot", str(self.snapshot),
+            env=env,
+        )
+        self.assertIn("snapshot matches", result.stdout)
 
     def test_valid_candidate_promotes(self) -> None:
         candidate = self.propose()
