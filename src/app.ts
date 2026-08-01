@@ -2,13 +2,19 @@ import { builderPath, getAppBasePath, parseFragment } from "./encoding/fragment.
 import {
   appendMeaningSessionDelta,
   buildMeaningSessionShareUrl,
-  buildMeaningShareUrl,
   createMeaningSession,
   decodePagePayload,
   PagePayloadError,
   type MeaningSession,
   type PagePayloadEncoding,
 } from "./encoding/pagePipeline.js";
+import {
+  buildInteractivePageShareUrl,
+  interactionLedgerFromPage,
+  MAX_SHARED_INTERACTIONS,
+  sharedInteractionLedger,
+  type SharedInteractionEntry,
+} from "./encoding/shareableInteraction.js";
 import { operationsControlRoomPacket } from "./examples/operations-control-room.js";
 import {
   browserRendererCapabilities,
@@ -27,7 +33,12 @@ import { createInteractionStateDelta, createPageTransactionDelta } from "./proto
 import { renderPage, type PageAffordanceInvocation } from "./rendering/renderPage.js";
 import { DocumentValidationError } from "./schema/errors.js";
 import type { JuanPageDocument, PageScalar } from "./schema/page.js";
-import type { PageInteractionMutation } from "./state/pageState.js";
+import {
+  loadPageState,
+  pageStateKey,
+  type PageInteractionMutation,
+  type PageState,
+} from "./state/pageState.js";
 import {
   createBrowserEventTransport,
   deltaMessage,
@@ -64,6 +75,8 @@ function errorPage(error: unknown): JuanPageDocument {
 }
 
 let removeMeaningBridge: (() => void) | undefined;
+let removeShareBridge: (() => void) | undefined;
+let activitySequence = 0;
 const browserTransport = createBrowserEventTransport(window);
 
 function policyFromPage(page: JuanPageDocument, affordanceId: string): ActionPolicy {
@@ -136,14 +149,14 @@ function createMeaningBridge(
   return {
     session: session ? () => session! : undefined,
     async onAffordance(invocation): Promise<void> {
-      if (invocation.effect !== "invoke") return;
       const policy = policyFromPage(page, invocation.affordanceId);
       const target = invocation.objectId ?? null;
+      const operation = invocation.operation ?? `op:human.${invocation.effect}`;
       const delta = createActionDelta(
         packetId,
         revision,
         "actor:human:browser",
-        invocation.affordanceId,
+        operation,
         target,
         scalarArgs(page, invocation),
         policy,
@@ -151,22 +164,148 @@ function createMeaningBridge(
       const receipt = createActionReceipt(delta, policy === "approval" ? "proposed" : "authorized", {
         transport: transport.name,
         execution: "record-only",
+        affordance: invocation.affordanceId,
+        effect: invocation.effect,
       });
       await sendDelta(delta, receipt);
     },
   };
 }
 
+function transactionForMutation(state: PageState, mutation: PageInteractionMutation) {
+  if (mutation.kind === "transaction") {
+    return [...state.history, ...state.future].find((transaction) => transaction.id === mutation.transactionId);
+  }
+  return state.history.at(-1);
+}
+
+function mutationActivity(state: PageState, mutation: PageInteractionMutation): SharedInteractionEntry {
+  activitySequence += 1;
+  const transaction = transactionForMutation(state, mutation);
+  const action = mutation.kind === "transaction" ? `${mutation.action[0]?.toUpperCase()}${mutation.action.slice(1)} · ` : "";
+  return {
+    id: transaction
+      ? `${transaction.id}:${mutation.kind === "transaction" ? mutation.action : "commit"}:${activitySequence}`
+      : `activity:${Date.now().toString(36)}:${activitySequence.toString(36)}`,
+    label: `${action}${transaction?.label ?? mutation.kind}`,
+    timestamp: new Date().toISOString(),
+    patches: mutation.kind === "transaction" ? mutation.patches.length : transaction?.patches.length ?? 1,
+  };
+}
+
+function affordanceActivity(invocation: PageAffordanceInvocation): SharedInteractionEntry {
+  activitySequence += 1;
+  const operation = invocation.operation ?? invocation.affordanceId;
+  return {
+    id: `affordance:${Date.now().toString(36)}:${activitySequence.toString(36)}`,
+    label: `${invocation.effect[0]?.toUpperCase()}${invocation.effect.slice(1)} · ${operation}`,
+    timestamp: new Date().toISOString(),
+    patches: 0,
+  };
+}
+
+function replaceShareUrl(url: string): void {
+  const parsed = new URL(url);
+  window.history.replaceState(null, "", `${parsed.pathname}${parsed.search}${parsed.hash}`);
+}
+
+function renderInteractionLedger(
+  page: JuanPageDocument,
+  mount: HTMLElement,
+  activity: readonly SharedInteractionEntry[],
+  status: string,
+): void {
+  const workspace = mount.querySelector<HTMLElement>(".jp-u-workspace");
+  if (!workspace) return;
+  workspace.querySelector(".jp-u-interaction-ledger")?.remove();
+  const state = loadPageState(pageStateKey(page), page);
+  const ledger = sharedInteractionLedger(page, state, activity);
+  const section = document.createElement("section");
+  section.className = "jp-u-relations jp-u-interaction-ledger";
+  section.setAttribute("aria-label", "Human interaction ledger");
+  const heading = document.createElement("h2");
+  heading.textContent = "Human activity";
+  const description = document.createElement("p");
+  description.className = "jp-u-description";
+  description.textContent = status;
+  section.append(heading, description);
+  if (!ledger.length) {
+    const empty = document.createElement("p");
+    empty.className = "jp-u-empty";
+    empty.textContent = "No interactions yet. Use any bound control and the URL will encode the resulting state.";
+    section.append(empty);
+  } else {
+    const list = document.createElement("ol");
+    list.className = "jp-u-network-edges";
+    for (const entry of ledger) {
+      const item = document.createElement("li");
+      const time = new Date(entry.timestamp).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" });
+      item.textContent = `${time} · ${entry.label}${entry.patches ? ` · ${entry.patches} state change${entry.patches === 1 ? "" : "s"}` : ""}`;
+      list.append(item);
+    }
+    section.append(list);
+  }
+  workspace.append(section);
+}
+
 function render(
   page: JuanPageDocument,
   mount: HTMLElement,
-  options: { session?: MeaningSession; onShare?: () => string | Promise<string> } = {},
+  options: { session?: MeaningSession } = {},
 ): void {
+  removeShareBridge?.();
   const bridge = createMeaningBridge(page, options.session);
-  const onShare = bridge.session
-    ? () => buildMeaningSessionShareUrl(bridge.session!(), appBaseUrl())
-    : options.onShare;
-  renderPage(page, mount, { builderHref: builderPath(), onShare, onAffordance: bridge.onAffordance });
+  let activity = interactionLedgerFromPage(page);
+  let status = activity.length
+    ? `Loaded ${activity.length} encoded interaction${activity.length === 1 ? "" : "s"}. New actions will update this URL automatically.`
+    : "Every semantic action updates this URL automatically. Copy the address bar or use Share.";
+
+  const currentState = (): PageState => loadPageState(pageStateKey(page), page);
+  const buildShareUrl = async (): Promise<string> => bridge.session
+    ? buildMeaningSessionShareUrl(bridge.session(), appBaseUrl())
+    : buildInteractivePageShareUrl(page, currentState(), appBaseUrl(), "gz", activity);
+
+  const synchronize = async (): Promise<string> => {
+    try {
+      const url = await buildShareUrl();
+      replaceShareUrl(url);
+      status = `URL synchronized · ${activity.length} interaction${activity.length === 1 ? "" : "s"} encoded.`;
+      renderInteractionLedger(page, mount, activity, status);
+      return url;
+    } catch (error) {
+      status = `The latest state is local, but the share URL could not be updated: ${error instanceof Error ? error.message : String(error)}`;
+      renderInteractionLedger(page, mount, activity, status);
+      throw error;
+    }
+  };
+
+  const record = (entry: SharedInteractionEntry): void => {
+    activity = [...activity, entry].slice(-MAX_SHARED_INTERACTIONS);
+  };
+
+  const interactionListener = (event: Event): void => {
+    const mutation = (event as CustomEvent<PageInteractionMutation>).detail;
+    if (!mutation) return;
+    queueMicrotask(() => {
+      record(mutationActivity(currentState(), mutation));
+      void synchronize().catch((error) => console.error("JuanPager could not synchronize the interaction URL", error));
+    });
+  };
+  window.addEventListener("juanpager:interaction", interactionListener);
+  removeShareBridge = () => window.removeEventListener("juanpager:interaction", interactionListener);
+
+  const onAffordance = async (invocation: PageAffordanceInvocation): Promise<void> => {
+    await bridge.onAffordance?.(invocation);
+    record(affordanceActivity(invocation));
+    await synchronize();
+  };
+
+  renderPage(page, mount, {
+    builderHref: builderPath(),
+    onShare: synchronize,
+    onAffordance,
+  });
+  renderInteractionLedger(page, mount, activity, status);
 }
 
 async function bootstrap(): Promise<void> {
@@ -187,10 +326,10 @@ async function bootstrap(): Promise<void> {
       return;
     }
     if (decoded.kind === "m1") {
-      render(decoded.page, mount, { onShare: () => buildMeaningShareUrl(decoded.packet, appBaseUrl()) });
+      render(decoded.page, mount, { session: createMeaningSession(decoded.packet) });
       return;
     }
-    render(decoded.page, mount, { onShare: () => window.location.href });
+    render(decoded.page, mount);
   } catch (error) {
     render(errorPage(error), mount);
   }
