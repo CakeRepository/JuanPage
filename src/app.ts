@@ -13,7 +13,6 @@ import {
   interactionLedgerFromMeaningSession,
   interactionLedgerFromPage,
   MAX_SHARED_INTERACTIONS,
-  sharedInteractionLedger,
   type SharedInteractionEntry,
 } from "./encoding/shareableInteraction.js";
 import { operationsControlRoomPacket } from "./examples/operations-control-room.js";
@@ -210,44 +209,6 @@ function replaceShareUrl(url: string): void {
   window.history.replaceState(null, "", `${parsed.pathname}${parsed.search}${parsed.hash}`);
 }
 
-function renderInteractionLedger(
-  page: JuanPageDocument,
-  mount: HTMLElement,
-  activity: readonly SharedInteractionEntry[],
-  status: string,
-): void {
-  const workspace = mount.querySelector<HTMLElement>(".jp-u-workspace");
-  if (!workspace) return;
-  workspace.querySelector(".jp-u-interaction-ledger")?.remove();
-  const state = loadPageState(pageStateKey(page), page);
-  const ledger = sharedInteractionLedger(page, state, activity);
-  const section = document.createElement("section");
-  section.className = "jp-u-relations jp-u-interaction-ledger";
-  section.setAttribute("aria-label", "Human interaction ledger");
-  const heading = document.createElement("h2");
-  heading.textContent = "Human activity";
-  const description = document.createElement("p");
-  description.className = "jp-u-description";
-  description.textContent = status;
-  section.append(heading, description);
-  if (!ledger.length) {
-    const empty = document.createElement("p");
-    empty.className = "jp-u-empty";
-    empty.textContent = "No interactions yet. Use any bound control and the URL will encode the resulting state.";
-    section.append(empty);
-  } else {
-    const list = document.createElement("ol");
-    list.className = "jp-u-network-edges";
-    for (const entry of ledger) {
-      const item = document.createElement("li");
-      item.textContent = `${entry.label}${entry.patches ? ` · ${entry.patches} state change${entry.patches === 1 ? "" : "s"}` : ""}`;
-      list.append(item);
-    }
-    section.append(list);
-  }
-  workspace.append(section);
-}
-
 function render(
   page: JuanPageDocument,
   mount: HTMLElement,
@@ -259,9 +220,6 @@ function render(
     ...interactionLedgerFromPage(page),
     ...(options.session ? interactionLedgerFromMeaningSession(options.session) : []),
   ].slice(-MAX_SHARED_INTERACTIONS);
-  let status = activity.length
-    ? `Loaded ${activity.length} encoded interaction${activity.length === 1 ? "" : "s"}. New actions will update this URL automatically.`
-    : "Every semantic action updates this URL automatically. Copy the address bar or use Share.";
 
   const currentState = (): PageState => loadPageState(pageStateKey(page), page);
   const buildShareUrl = async (): Promise<string> => bridge.session
@@ -269,17 +227,9 @@ function render(
     : buildInteractivePageShareUrl(page, currentState(), appBaseUrl(), "gz", activity);
 
   const synchronize = async (): Promise<string> => {
-    try {
-      const url = await buildShareUrl();
-      replaceShareUrl(url);
-      status = `URL synchronized · ${activity.length} interaction${activity.length === 1 ? "" : "s"} encoded.`;
-      renderInteractionLedger(page, mount, activity, status);
-      return url;
-    } catch (error) {
-      status = `The latest state is local, but the share URL could not be updated: ${error instanceof Error ? error.message : String(error)}`;
-      renderInteractionLedger(page, mount, activity, status);
-      throw error;
-    }
+    const url = await buildShareUrl();
+    replaceShareUrl(url);
+    return url;
   };
 
   const record = (entry: SharedInteractionEntry): void => {
@@ -308,7 +258,6 @@ function render(
     onShare: synchronize,
     onAffordance,
   });
-  renderInteractionLedger(page, mount, activity, status);
 }
 
 async function bootstrap(): Promise<void> {
