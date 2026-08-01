@@ -252,8 +252,14 @@ function interactionValue(state: PageState, domain: PageInteractionDomain, key: 
   return cloneInteractionValue(interactionRecord(state, domain)[key]);
 }
 
+function currentScalarValue(state: PageState, target: string, field: string): PageScalar | undefined {
+  const fields = state.values[target];
+  if (fields && Object.prototype.hasOwnProperty.call(fields, field)) return fields[field];
+  return state.baseValues[target]?.[field];
+}
+
 function patchValue(state: PageState, patch: PageStatePatch): unknown {
-  if (patch.domain === "value") return state.values[patch.target]?.[patch.field];
+  if (patch.domain === "value") return currentScalarValue(state, patch.target, patch.field);
   if (patch.domain === "scope") return state.scopes[patch.key];
   if (patch.domain === "selection") return state.selections[patch.key];
   return interactionValue(state, patch.state, patch.key);
@@ -353,7 +359,7 @@ export function effectivePageObjects(page: JuanPageDocument, state: PageState): 
 }
 
 export function setPageValue(state: PageState, target: string, field: string, value: PageScalar, label = `Set ${field}`): void {
-  const before = state.values[target]?.[field] ?? state.baseValues[target]?.[field];
+  const before = currentScalarValue(state, target, field);
   if (equal(before, value)) return;
   commitSingle(state, label, { domain: "value", target, field, before, after: value }, { kind: "set", target, field, value });
 }
