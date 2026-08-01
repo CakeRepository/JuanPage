@@ -70,6 +70,22 @@ npm run decode -- "https://cakerepository.github.io/JuanPage/#v=5&enc=gz&data=..
 
 Never put secrets, bearer credentials, private keys, or sensitive tokens in URL payloads.
 
+## Inspect returned URLs
+
+When a user returns any v5 JuanPage URL, decode it before answering what changed. Prefer the canonical repository command when a checkout is available:
+
+```bash
+npm run inspect -- "<returned-url>" --against path/to/original-page.json
+```
+
+Use `--json` for structured agent output. When no repository checkout is available, run the bundled dependency-free fallback:
+
+```bash
+python3 scripts/inspect_url.py "<returned-url>" --against path/to/original-page.json
+```
+
+Report final semantic differences separately from recorded activity. Resolve affordance IDs to human labels. If the original page is unavailable, disclose that summary-only direct URLs cannot prove intermediate before/after values. Prefer an M1 URL session whenever exact ordered deltas, approvals, and receipts must return to the originating agent.
+
 ## Start with the live repository for implementation work
 
 Enter this workflow only when the user asks to change, debug, review, or extend JuanPager itself.

@@ -52,6 +52,7 @@
     "release:dry-run": "npm audit --audit-level=high && npm run check:release-version && npm run build && npm run check:public-api && npm run test:consumer && npm run benchmark:budget && npm run package:dry-run",
     "encode": "tsx scripts/encode.ts",
     "decode": "tsx scripts/decode.ts",
+    "inspect": "tsx scripts/inspect.ts",
     "prepack": "npm run build:sdk && npm test"
   },
   "dependencies": { "fflate": "^0.8.2", "zod": "^3.24.2" },

@@ -6,6 +6,7 @@ export * from "./protocol/envelope.js";
 export * from "./protocol/trust-projection.js";
 export * from "./encoding/pagePipeline.js";
 export * from "./encoding/shareableInteraction.js";
+export * from "./inspection/returnedUrl.js";
 export * from "./session/session.js";
 export * from "./session/store.js";
 export * from "./session/http-handler.js";
