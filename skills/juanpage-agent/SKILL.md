@@ -1,13 +1,78 @@
 ---
 name: juanpage-agent
-description: Design, generate, validate, implement, review, debug, and evolve JuanPager semantic experiences. Use for work involving JuanPage 2.0 documents, M1 packets or deltas, affordances, bindings, projections, typed human state, renderPage, agent-human sessions, trusted execution, examples, tests, or repository architecture in CakeRepository/juanpager. Treat the checked-out repository as canonical, preserve one semantic interaction model and one renderer, enforce real interactions and trust boundaries, and maintain this skill through an evidence-backed self-evolution loop when the protocol changes or repeated failures reveal a reusable lesson.
+description: Generate, validate, host, review, debug, and evolve JuanPager semantic experiences. Use when a user wants a JuanPage, a one-page interactive interface, a shareable JuanPager URL, an M1 human handoff, or repository work involving JuanPage 2.0, renderPage, typed human state, trust, or protocol evolution. Default to producing a working hosted JuanPage URL rather than modifying the JuanPager repository.
 ---
 
 # JuanPage Agent
 
-Use JuanPager as a semantic interaction protocol, not a component generator. Describe meaning, available operations, and typed state; let the trusted runtime choose the human presentation.
+JuanPager is a semantic interaction protocol, not a component generator. Describe meaning, available operations, and typed state; let the trusted runtime choose the human presentation.
 
-## Start with the live repository
+## Default user experience: generate the URL
+
+Most users do not want protocol architecture work. They want a working JuanPage they can open.
+
+For ordinary first-run requests:
+
+1. Identify the JuanPager host URL. Prefer a URL supplied by the user. Otherwise use the project’s documented production host when it is available.
+2. Translate the user’s request into a JuanPage 2.0 semantic graph.
+3. Add only real affordances and valid bindings.
+4. Validate the page with the repository’s exported validator.
+5. Encode the page into a self-contained v5 URL using the host URL.
+6. Return the clickable URL as the primary result, with a brief description of what is interactive.
+
+The user supplies the desired world or task. The host URL is configuration. Do not confuse the host URL with the source content for the page.
+
+A first-run prompt may be as simple as:
+
+```text
+Create a JuanPage for a product launch command center.
+```
+
+Given a configured host such as:
+
+```text
+https://cakerepository.github.io/juanpager/
+```
+
+the skill should generate and return a URL shaped like:
+
+```text
+https://cakerepository.github.io/juanpager/#v=5&enc=gz&data=...
+```
+
+Use direct JuanPage for safe, self-contained interfaces that only inspect, set, scope, select, copy, or otherwise update local typed state. Use an M1 URL session when the human response must return to an agent as ordered deltas and receipts.
+
+Do not open a pull request, modify the JuanPager repository, or design new protocol machinery unless the user explicitly asks for implementation or repository changes.
+
+## Hosted URL workflow
+
+When a checked-out repository is available, generate URLs with the canonical encoder:
+
+```bash
+export JUANPAGER_BASE_URL="https://cakerepository.github.io/juanpager/"
+npm run encode -- path/to/page.json
+```
+
+For an M1 round-trip session:
+
+```bash
+export JUANPAGER_BASE_URL="https://cakerepository.github.io/juanpager/"
+npm run encode -- path/to/packet.json --session
+```
+
+The resulting link is the deliverable. A self-contained URL is data transported to the trusted `renderPage` runtime; it is not a generated web application or a second UI schema.
+
+When the user returns a shared M1 session URL, decode it and use typed deltas and receipts as the human response:
+
+```bash
+npm run decode -- "https://cakerepository.github.io/juanpager/#v=5&enc=gz&data=..."
+```
+
+Never put secrets, bearer credentials, private keys, or sensitive tokens in URL payloads.
+
+## Start with the live repository for implementation work
+
+Only enter this workflow when the user asks to change, debug, review, or extend JuanPager itself.
 
 1. Locate the JuanPager repository root.
 2. Run:
@@ -16,22 +81,22 @@ Use JuanPager as a semantic interaction protocol, not a component generator. Des
    python3 skills/juanpage-agent/scripts/evolve.py check --repo .
    ```
 
-3. If the snapshot is stale, inspect the changed canonical files before designing anything. Run `sync` only after understanding the changes, and include the updated snapshot and any necessary skill edits in the same pull request.
-4. Read `references/canonical-model.md`. Read the live source files it names whenever exact types, opcodes, limits, or behavior matter.
-5. Treat source and executable tests as stronger authority than prose documentation. When they disagree, fix the documentation or skill in the same change when practical.
+3. If the snapshot is stale, inspect the changed canonical files before designing anything. Run `sync` only after understanding the changes.
+4. Read `references/canonical-model.md` and the live source files it names whenever exact types, opcodes, limits, or behavior matter.
+5. Treat source and executable tests as stronger authority than prose documentation.
 
 Do not continue from remembered JuanPage versions or examples without checking the current repository.
 
 ## Choose the producer boundary
 
-- Use **M1** when meaning crosses a transport, trust, capability, signing, interoperability, or external-agent boundary.
-- Use **JuanPage directly** only when the producer already owns a canonical validated semantic graph and does not need M1 trust compilation.
-- Both paths must converge on the current JuanPage schema and the single `renderPage` runtime.
+- Use **direct JuanPage** for a self-contained semantic surface when the producer owns the validated graph and no transport trust compilation is required.
+- Use **M1** when meaning crosses a transport, trust, capability, signing, interoperability, external-agent, or human-return boundary.
+- Both paths converge on JuanPage 2.0 and the single `renderPage` runtime.
 - Do not introduce another component tree, page schema, renderer, markup format, or agent-authored executable surface.
 
-## Model the interaction before coding
+## Model the interaction
 
-Translate the request into these semantic layers:
+Translate the request into:
 
 1. **Information**: stable objects, fields, relations, metrics, evidence, and projections.
 2. **Affordances**: the narrowest real effect available to the human.
@@ -41,12 +106,12 @@ Translate the request into these semantic layers:
 
 Information is inert by default. Never make something look interactive unless a valid affordance and binding produce a typed result.
 
-## Use the semantic effects precisely
+## Use semantic effects precisely
 
 - `inspect`: reveal more information locally.
 - `set`: update a typed fact.
 - `scope`: change the active viewing context without rewriting domain facts.
-- `select`: change one or more selected semantic targets.
+- `select`: change selected semantic targets.
 - `invoke`: request or propose an externally consequential operation.
 - `navigate`: move to a policy-allowed trusted URL.
 - `copy`: copy a typed source through the host clipboard.
@@ -55,34 +120,30 @@ Do not encode scope as a fact edit, inspection as invocation, approval as displa
 
 ## Build current-schema payloads
 
-When authoring JuanPage:
-
-- Use `version: "2.0"` unless the live schema has deliberately changed.
+- Use `version: "2.0"` unless the live schema deliberately changes.
 - Give every object, relation, metric, scope, projection, affordance, and binding a stable unique ID.
-- Keep binding targets and referenced IDs valid.
-- Put the semantic destination in the binding target. Do not invent unsupported effect fields from stale examples.
-- Supply every field required by the live strict Zod schema, including an affordance input.
-- Use only input kinds implemented by the live schema.
-- Describe projections as data relationships, not chart types or widget instructions.
-- Bind projection points only when activating them performs a real effect such as scope or selection.
+- Keep every binding target and referenced ID valid.
+- Put semantic placement in the binding target.
+- Supply every required field, including an affordance input.
+- Use only implemented input kinds.
+- Describe projections as data relationships, not chart or widget instructions.
+- Bind projected data only when activation performs a real effect.
 - Keep display-only content free of fake control metadata.
-- Never include HTML, CSS, JavaScript, callbacks, framework components, iframes, shell commands, SQL, plugins, or arbitrary network instructions.
-- Never place secrets or bearer credentials in pages, packets, URL fragments, notifications, or receipts.
+- Never include HTML, CSS, JavaScript, callbacks, framework components, iframes, shell commands, SQL, plugins, or arbitrary network instructions in a page.
 
-Validate with the repository's exported validators or the same code path used by production. Do not rely on visual plausibility.
-
-## Implement repository changes
-
-1. Reuse the canonical schema, materializer, state engine, renderer, and public SDK entrypoints.
-2. Extend the current model only when a concrete interaction cannot be represented coherently.
-3. When making a breaking redesign, complete the transition: schema, protocol, materialization, state, renderer, examples, tests, docs, and obsolete-code removal. Do not leave two canonical ways to express the same meaning.
-4. Preserve agent-human symmetry: if an agent can meaningfully scope, choose, mutate, inspect, approve, or act, consider the corresponding human operation on the same semantic state.
-5. Preserve accessibility, immediate visual truth, typed deltas, replay safety, and fail-closed authority boundaries.
-6. Keep browser and self-contained URL behavior record-only for remote effects. Host-selected executors must re-authorize and enforce idempotency at the actual side-effect boundary.
+Validate with the repository’s exported validators or the same code path used by production. Do not rely on visual plausibility.
 
 ## Verify behavior
 
-Run the narrowest relevant tests first, then the repository checks required by the change. The default completion bar is:
+For generated pages, prove at minimum:
+
+- the page validates;
+- every visible control has an affordance and binding;
+- referenced fields and objects exist;
+- the final URL decodes back to the same semantic page;
+- remote effects are absent unless intentionally modeled through M1 and authority policy.
+
+For repository changes, run the narrowest relevant tests first, then:
 
 ```bash
 npm run check:one-runtime
@@ -90,39 +151,21 @@ npm test
 npm run build
 ```
 
-Also run `npm run test:e2e` for renderer, browser, PWA, URL-session, or human-interaction changes; run conformance, consumer, benchmark, or release checks when those boundaries change.
-
-When changing the skill evolution loop, run:
-
-```bash
-python3 -m unittest discover -s skills/juanpage-agent/tests -p "test_*.py" -v
-```
-
-Tests must prove semantics, not just appearance:
-
-- every visible control has a working affordance and binding;
-- human actions create the expected typed state or delta;
-- dependent metrics, projections, and objects update immediately;
-- invalid references and unsupported shapes fail closed;
-- denied or untrusted remote effects never reach execution;
-- approval and replay behavior preserve mutation IDs and idempotency keys;
-- pointer, keyboard, touch, reduced-motion, and assistive semantics remain viable where applicable.
+Run `npm run test:e2e` for renderer, browser, PWA, URL-session, or human-interaction changes.
 
 Do not add blind sleeps, skip tests, weaken assertions, or create decorative interactions.
 
+## Trusted execution boundary
+
+Self-contained browser URLs are record-only for remote effects. `invoke` creates a typed proposal or invocation record; it does not grant execution authority.
+
+A trusted host executor must re-check authorization and tenant context, enforce idempotency in the external system, and record terminal deltas and receipts.
+
 ## Self-evolve through evidence
 
-The skill may improve itself, but must not silently rewrite its rules from one anecdote.
+Create an evolution candidate only when repository evidence shows a reusable lesson, such as canonical source drift, repeated agent error, a general review finding, a failing test that exposes a reusable rule, or a new protocol capability needing a repeatable workflow.
 
-Create an evolution candidate when any of these occurs:
-
-- a canonical source changes and the current skill would mislead an agent;
-- the same agent mistake appears more than once;
-- a review comment identifies a generalizable missing guardrail;
-- a failing test exposes a reusable modeling or verification rule;
-- a new protocol capability needs a repeatable workflow.
-
-Record a candidate with concrete repository evidence:
+Do not create an evolution candidate merely because a new example was generated successfully.
 
 ```bash
 python3 skills/juanpage-agent/scripts/evolve.py propose \
@@ -133,7 +176,7 @@ python3 skills/juanpage-agent/scripts/evolve.py propose \
   --evidence tests/page.test.ts
 ```
 
-The candidate records the canonical snapshot and Git blob digest of each evidence file. Promote it only after confirming that it is general, non-duplicative, compatible with the canonical source, and supported by passing tests or a validated example:
+Promotion requires immutable evidence and an explicit approval identity:
 
 ```bash
 python3 skills/juanpage-agent/scripts/evolve.py promote \
@@ -142,28 +185,31 @@ python3 skills/juanpage-agent/scripts/evolve.py promote \
   --approved-by <reviewer-or-agent-id>
 ```
 
-Promotion must fail if canonical source or any evidence file changed after proposal. Re-review and re-propose rather than approving stale evidence. Promotion appends a traceable lesson to `references/learned-patterns.md`; it does not alter protocol code. Commit the candidate, promoted lesson, snapshot, tests, and related code or documentation together for review.
-
-Never learn permission from labels, prose, model confidence, screenshots, or successful appearance. Never auto-promote a lesson without evidence and an explicit approval identity.
-
-See `references/evolution-protocol.md` for the full governance rules.
+Never learn permission from labels, prose, model confidence, screenshots, or successful appearance.
 
 ## Common translations
 
-- “Make July clickable and update the whole report” → one `scope` affordance, page/projection bindings, typed scope state, dependent projections and metrics.
-- “Make this a checklist” → Boolean facts with `set` affordances bound to fields; checked state is typed data, not visual-only UI state.
-- “Let the human approve deployment” → signed M1 proposal, approval policy, durable session completion, host-side authorization and idempotent executor, terminal receipt.
-- “Show a read-only summary” → objects, fields, metrics, and projections without affordances or bindings.
-- “Add a cool chart control” → first identify the semantic operation. If no real operation exists, render an inert projection instead of a decorative control.
+- “Make me a launch command center” → generate a direct JuanPage, validate it, encode it against the configured host, and return the URL.
+- “Make July clickable and update the report” → one `scope` affordance, page/projection bindings, typed scope state, and dependent metrics.
+- “Make this a checklist” → Boolean facts with `set` affordances bound to fields.
+- “Let a human approve deployment and return the answer to my agent” → M1 URL session, approval policy, typed proposal, receipt, and returned shared URL.
+- “Show a read-only summary” → objects, fields, metrics, and projections without affordances.
+- “Add a cool chart control” → identify the semantic operation first; otherwise render an inert projection.
 
 ## Output standard
 
-For a design or implementation task, return or commit:
+For ordinary generation requests, return:
+
+1. the hosted JuanPage URL;
+2. a one-paragraph explanation of what the human can inspect or change;
+3. the semantic source only when useful or requested.
+
+For repository implementation work, return or commit:
 
 1. the canonical semantic model or code change;
-2. the typed interaction and authority behavior;
+2. typed interaction and authority behavior;
 3. validation and test evidence;
 4. migration or removal work when the canonical model changed;
-5. a skill evolution candidate only when a genuinely reusable lesson was discovered.
+5. a skill evolution candidate only when genuinely justified.
 
 Keep explanations in plain English and distinguish implemented behavior from proposals.
