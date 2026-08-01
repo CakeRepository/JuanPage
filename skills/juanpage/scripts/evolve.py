@@ -85,7 +85,7 @@ def current_snapshot(repo: Path, manifest_path: Path) -> dict[str, Any]:
         raise SystemExit("Canonical source files are missing:\n- " + "\n- ".join(missing))
     return {
         "version": 1,
-        "repository": "CakeRepository/juanpager",
+        "repository": "CakeRepository/JuanPage",
         "commit": repository_commit(repo),
         "generated_at": utc_now(),
         "manifest_digest": hashlib.sha256("\n".join(paths).encode("utf-8")).hexdigest(),
