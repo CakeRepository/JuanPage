@@ -208,17 +208,19 @@ See [`SECURITY.md`](../SECURITY.md) and [`spec/SIGNED_ENVELOPES.md`](../spec/SIG
 
 ## URL sessions
 
+The canonical production host is `https://cakerepository.github.io/JuanPage/`.
+
 Create a record-only agent-to-human session:
 
 ```bash
-export JUANPAGER_BASE_URL="https://cakerepository.github.io/juanpager/"
+export JUANPAGER_BASE_URL="https://cakerepository.github.io/JuanPage/"
 npm run encode -- examples/change-approval.json --session
 ```
 
 Decode the human-returned URL:
 
 ```bash
-npm run decode -- "https://cakerepository.github.io/juanpager/#v=5&enc=gz&data=..."
+npm run decode -- "https://cakerepository.github.io/JuanPage/#v=5&enc=gz&data=..."
 ```
 
 A v5 session carries the original M1 packet, ordered typed deltas, and operation receipts. See [`docs/URL_SESSIONS.md`](URL_SESSIONS.md).

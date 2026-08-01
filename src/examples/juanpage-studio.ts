@@ -73,7 +73,7 @@ export const juanPageStudio: JuanPageDocument = {
       summary: "The final page is data transported to the trusted renderPage runtime, not a generated application or second UI schema.",
       fields: [
         { key: "contract", label: "Contract", value: "JuanPage 2.0", display: "prominent" },
-        { key: "host", label: "JuanPager host", value: "https://cakerepository.github.io/juanpager/", format: "url" },
+        { key: "host", label: "JuanPager host", value: "https://cakerepository.github.io/JuanPage/", format: "url" },
         { key: "renderer", label: "Renderer", value: "renderPage" },
         { key: "complete", label: "Generated and decoded", value: false },
       ],
@@ -221,7 +221,7 @@ export const juanPageStudio: JuanPageDocument = {
       id: "edit-host",
       label: "JuanPager host",
       effect: { kind: "set", field: "host" },
-      input: { kind: "text", placeholder: "https://host.example/juanpager/" },
+      input: { kind: "text", placeholder: "https://host.example/JuanPage/" },
     },
     { id: "toggle-complete", label: "Complete", effect: { kind: "set", field: "complete" }, input: { kind: "boolean" } },
     {

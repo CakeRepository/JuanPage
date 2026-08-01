@@ -3,7 +3,7 @@ import { skillFirstRunPage } from "../src/examples/skill-first-run";
 import { buildPageShareUrl, decodePagePayload } from "../src/encoding/pagePipeline";
 import { validatePage } from "../src/schema/page";
 
-const HOST = "https://cakerepository.github.io/juanpager/";
+const HOST = "https://cakerepository.github.io/JuanPage/";
 
 describe("JuanPage skill first-run experience", () => {
   it("validates the generated semantic page", () => {
@@ -12,6 +12,7 @@ describe("JuanPage skill first-run experience", () => {
     expect(page.version).toBe("2.0");
     expect(page.title).toBe("AI Product Launch Command Center");
     expect(page.metadata?.["example.kind"]).toBe("skill-first-run");
+    expect(page.metadata?.["example.host"]).toBe(HOST);
   });
 
   it("generates a self-contained URL from only the host and page", async () => {

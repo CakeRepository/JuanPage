@@ -33,8 +33,8 @@ Human interactions must be represented as first-class typed data whenever an age
 Requirements: Node.js 22 and npm.
 
 ```bash
-git clone https://github.com/CakeRepository/juanpager.git
-cd juanpager
+git clone https://github.com/CakeRepository/JuanPage.git
+cd JuanPage
 npm ci
 npm run check:one-runtime
 npm test
@@ -42,6 +42,8 @@ npm run dev
 ```
 
 Open the viewer shown by Vite. The deterministic deployment fixture is in `src/examples/reference-deployment.ts`.
+
+The production GitHub Pages deployment is `https://cakerepository.github.io/JuanPage/`.
 
 ## Development checks
 

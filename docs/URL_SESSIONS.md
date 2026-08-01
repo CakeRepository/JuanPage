@@ -13,26 +13,36 @@ agent creates M1 packet
 
 The URL session is a record-only transport envelope around M1. It is not a component tree, a second public UI schema, or remote execution authority.
 
+## Production host
+
+The canonical GitHub Pages deployment is:
+
+```text
+https://cakerepository.github.io/JuanPage/
+```
+
+The repository name is case-sensitive in the project-site path. Use `/JuanPage/`, not the former `/juanpager/` path.
+
 ## Generate a URL
 
 Requires Node.js 22.
 
 ```bash
-export JUANPAGER_BASE_URL="https://cakerepository.github.io/juanpager/"
+export JUANPAGER_BASE_URL="https://cakerepository.github.io/JuanPage/"
 npm run encode -- examples/change-approval.json --session
 ```
 
 PowerShell:
 
 ```powershell
-$env:JUANPAGER_BASE_URL="https://cakerepository.github.io/juanpager/"
+$env:JUANPAGER_BASE_URL="https://cakerepository.github.io/JuanPage/"
 npm run encode -- examples/change-approval.json --session
 ```
 
 The command returns a URL shaped like:
 
 ```text
-https://cakerepository.github.io/juanpager/#v=5&enc=gz&data=...
+https://cakerepository.github.io/JuanPage/#v=5&enc=gz&data=...
 ```
 
 Use `--raw` instead of the default gzip encoding when inspecting the payload is more important than URL length.
@@ -40,7 +50,7 @@ Use `--raw` instead of the default gzip encoding when inspecting the payload is 
 ## Decode the returned URL
 
 ```bash
-npm run decode -- "https://cakerepository.github.io/juanpager/#v=5&enc=gz&data=..."
+npm run decode -- "https://cakerepository.github.io/JuanPage/#v=5&enc=gz&data=..."
 ```
 
 A v5 session contains the original M1 packet, ordered typed deltas, and operation receipts. The original packet remains unchanged. Deltas replay from its revision to produce the current JuanPage 2.0 information and interaction state.

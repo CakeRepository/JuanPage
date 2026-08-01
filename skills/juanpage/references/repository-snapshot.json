@@ -1,17 +1,17 @@
 {
-  "commit": "00207f6ed15768eca2c8d4728c698aae15e98db4",
+  "commit": "44e3d0e36e0bc65566de8abdadc07b60d0332227",
   "files": {
     "AGENTS.md": "caeeb71ad8069e7fae3c761f700195386fab014f",
     "SECURITY.md": "4c049a80e55b5ec91f2a2ca05644db45b77230e6",
-    "docs/AGENT_GUIDE.md": "7c86fcfa1ca25c91620fcd4971c7083186ecc7dd",
+    "docs/AGENT_GUIDE.md": "8e2da73ed68399ff6d46c25746f27a9814993cda",
     "package.json": "ac63f54dae9a19c144872bb1359fc361dd62d7ed",
     "spec/M1.md": "de41109fb9308da35d8f062a631388b40a1868b8",
     "src/protocol/meaning.ts": "68c54ccffc069efe71887dcc3876f332dde304ac",
     "src/rendering/renderPage.ts": "12109a95cfcdc7c07faaf2c26ef47a785abebeea",
     "src/schema/page.ts": "95727ebf202cf218a85550cdb51c345d1c40b4e1"
   },
-  "generated_at": "2026-08-01T04:27:00Z",
+  "generated_at": "2026-08-01T06:05:00Z",
   "manifest_digest": "ae985990137260d3214ed275521c0772af60545abcc2f3f97c0ab37a9675a061",
-  "repository": "CakeRepository/juanpager",
+  "repository": "CakeRepository/JuanPage",
   "version": 1
 }
