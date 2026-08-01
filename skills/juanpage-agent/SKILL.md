@@ -13,7 +13,7 @@ Use JuanPager as a semantic interaction protocol, not a component generator. Des
 2. Run:
 
    ```bash
-   python skills/juanpage-agent/scripts/evolve.py check --repo .
+   python3 skills/juanpage-agent/scripts/evolve.py check --repo .
    ```
 
 3. If the snapshot is stale, inspect the changed canonical files before designing anything. Run `sync` only after understanding the changes, and include the updated snapshot and any necessary skill edits in the same pull request.
@@ -95,7 +95,7 @@ Also run `npm run test:e2e` for renderer, browser, PWA, URL-session, or human-in
 When changing the skill evolution loop, run:
 
 ```bash
-python -m unittest discover -s skills/juanpage-agent/tests -p "test_*.py" -v
+python3 -m unittest discover -s skills/juanpage-agent/tests -p "test_*.py" -v
 ```
 
 Tests must prove semantics, not just appearance:
@@ -125,7 +125,7 @@ Create an evolution candidate when any of these occurs:
 Record a candidate with concrete repository evidence:
 
 ```bash
-python skills/juanpage-agent/scripts/evolve.py propose \
+python3 skills/juanpage-agent/scripts/evolve.py propose \
   --repo . \
   --title "Use binding targets as semantic destinations" \
   --lesson "Do not duplicate object targets inside effects; the binding owns placement." \
@@ -136,7 +136,7 @@ python skills/juanpage-agent/scripts/evolve.py propose \
 The candidate records the canonical snapshot and Git blob digest of each evidence file. Promote it only after confirming that it is general, non-duplicative, compatible with the canonical source, and supported by passing tests or a validated example:
 
 ```bash
-python skills/juanpage-agent/scripts/evolve.py promote \
+python3 skills/juanpage-agent/scripts/evolve.py promote \
   --repo . \
   --candidate skills/juanpage-agent/evolution/candidates/<file>.json \
   --approved-by <reviewer-or-agent-id>
