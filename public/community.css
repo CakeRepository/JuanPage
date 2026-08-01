@@ -1,0 +1,77 @@
+.jp-community-link {
+  position: fixed;
+  right: max(1rem, env(safe-area-inset-right));
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  z-index: 1000;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0.7rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  background: rgba(13, 15, 22, 0.9);
+  color: #f8fafc;
+  box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.28);
+  font: 650 0.875rem/1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
+}
+
+.jp-community-link::before {
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 999px;
+  background: #5865f2;
+  box-shadow: 0 0 0 0.22rem rgba(88, 101, 242, 0.2);
+  content: "";
+}
+
+.jp-community-link:hover {
+  transform: translateY(-2px);
+  border-color: rgba(139, 148, 255, 0.72);
+  background: rgba(24, 27, 42, 0.96);
+}
+
+.jp-community-link:focus-visible {
+  outline: 3px solid #a5b4fc;
+  outline-offset: 3px;
+}
+
+@media (max-width: 34rem) {
+  .jp-community-link {
+    right: max(0.75rem, env(safe-area-inset-right));
+    bottom: max(0.75rem, env(safe-area-inset-bottom));
+    min-height: 2.5rem;
+    padding: 0.6rem 0.85rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jp-community-link {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .jp-community-link {
+    border: 2px solid ButtonText;
+    background: ButtonFace;
+    color: ButtonText;
+  }
+
+  .jp-community-link::before {
+    background: ButtonText;
+    box-shadow: none;
+  }
+}
+
+@media print {
+  .jp-community-link {
+    display: none;
+  }
+}
