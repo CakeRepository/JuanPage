@@ -137,7 +137,7 @@ export class HttpAgentHumanSessionStore implements AgentHumanSessionStore {
     expectedRevision?: AgentHumanSessionRevisionPrecondition,
   ): Promise<AgentHumanSession> {
     const session = validateAgentHumanSession(sessionInput);
-    const precondition = expectedRevision === null
+    const precondition: Readonly<Record<string, string>> = expectedRevision === null
       ? { "if-none-match": "*" }
       : expectedRevision === undefined
         ? {}
@@ -153,7 +153,7 @@ export class HttpAgentHumanSessionStore implements AgentHumanSessionStore {
       const actual = Number(response.headers.get("x-session-revision"));
       throw new AgentHumanSessionConflictError(
         session.id,
-        expectedRevision ?? session.revision,
+        expectedRevision === undefined ? session.revision : expectedRevision,
         Number.isFinite(actual) ? actual : undefined,
       );
     }
