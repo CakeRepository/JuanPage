@@ -30,8 +30,11 @@ type EncodedStateAction = Readonly<{ domain: PageInteractionDomain; key: string;
 
 function parseJson(value: PageScalar | undefined, label: string): unknown {
   if (typeof value !== "string") throw new Error(`${label} must be encoded as JSON text`);
-  try { return JSON.parse(value) as unknown; }
-  catch (error) { throw new Error(`${label} contains invalid JSON`, { cause: error }); }
+  try {
+    return JSON.parse(value) as unknown;
+  } catch (error) {
+    throw new Error(`${label} contains invalid JSON`, { cause: error });
+  }
 }
 
 function actionMutations(delta: MeaningDelta): ActionMutation[] {
@@ -76,11 +79,19 @@ function patchMutation(
   side: "before" | "after",
   index: number,
 ): MeaningMutation {
-  const value = patch[side];
-  if (patch.domain === "value") return value === undefined ? [21, patch.target, patch.field] : [20, patch.target, patch.field, value];
-  if (patch.domain === "scope") return value === undefined || value === null ? [23, patch.key] : [22, patch.key, value];
-  if (patch.domain === "selection") return [24, patch.key, value === undefined ? [] : [...value]];
-  return interactionAction(packetId, revision, actorId, patch.state, patch.key, value, index);
+  if (patch.domain === "value") {
+    const value = patch[side];
+    return value === undefined ? [21, patch.target, patch.field] : [20, patch.target, patch.field, value];
+  }
+  if (patch.domain === "scope") {
+    const value = patch[side];
+    return value === undefined || value === null ? [23, patch.key] : [22, patch.key, value];
+  }
+  if (patch.domain === "selection") {
+    const value = patch[side];
+    return [24, patch.key, value === undefined ? [] : [...value]];
+  }
+  return interactionAction(packetId, revision, actorId, patch.state, patch.key, patch[side], index);
 }
 
 export function createInteractionStateDelta(
@@ -93,7 +104,13 @@ export function createInteractionStateDelta(
 ): MeaningDelta {
   pageInteractionDomainSchema.parse(domain);
   if (value !== undefined) pageInteractionValueSchema.parse(value);
-  return validateMeaningDelta([1, packetId, baseRevision, baseRevision + 1, [interactionAction(packetId, baseRevision, actorId, domain, key, value)]]);
+  return validateMeaningDelta([
+    1,
+    packetId,
+    baseRevision,
+    baseRevision + 1,
+    [interactionAction(packetId, baseRevision, actorId, domain, key, value)],
+  ]);
 }
 
 export function createPageTransactionDelta(
@@ -120,7 +137,11 @@ export function createPageTransactionDelta(
   )[4][0] as ActionMutation;
   const side = action === "undo" ? "before" : "after";
   const mutations: MeaningMutation[] = [marker];
-  if (action !== "cancel") patches.forEach((patch, index) => mutations.push(patchMutation(packetId, baseRevision, actorId, patch, side, index + 1)));
+  if (action !== "cancel") {
+    patches.forEach((patch, index) => {
+      mutations.push(patchMutation(packetId, baseRevision, actorId, patch, side, index + 1));
+    });
+  }
   return validateMeaningDelta([1, packetId, baseRevision, baseRevision + 1, mutations]);
 }
 
@@ -130,7 +151,9 @@ function decodeStateAction(mutation: ActionMutation): EncodedStateAction | undef
   const key = typeof mutation[5].key === "string" ? mutation[5].key : "";
   if (!key) throw new Error("Interaction state mutation is missing its key");
   const encoded = mutation[5].value;
-  const value = encoded === null ? undefined : pageInteractionValueSchema.parse(parseJson(encoded, "interaction state value"));
+  const value = encoded === null
+    ? undefined
+    : pageInteractionValueSchema.parse(parseJson(encoded, "interaction state value"));
   return { domain, key, value };
 }
 
