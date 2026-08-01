@@ -1,4 +1,4 @@
-const CACHE_VERSION = "juanpager-shell-v1";
+const CACHE_VERSION = "juanpager-shell-v2";
 const scopeUrl = new URL(self.registration.scope);
 const shell = [
   scopeUrl.pathname,
@@ -55,6 +55,32 @@ self.addEventListener("fetch", (event) => {
         return response;
       });
       return cached || fresh;
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const candidate = event.notification.data?.launchUrl;
+  if (typeof candidate !== "string") return;
+
+  let launchUrl;
+  try {
+    launchUrl = new URL(candidate);
+  } catch {
+    return;
+  }
+  if (launchUrl.origin !== scopeUrl.origin || !launchUrl.pathname.startsWith(scopeUrl.pathname)) return;
+
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(async (windows) => {
+      for (const client of windows) {
+        if (new URL(client.url).origin === launchUrl.origin) {
+          await client.navigate(launchUrl.toString());
+          return client.focus();
+        }
+      }
+      return self.clients.openWindow(launchUrl.toString());
     }),
   );
 });
