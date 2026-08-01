@@ -92,6 +92,12 @@ npm run build
 
 Also run `npm run test:e2e` for renderer, browser, PWA, URL-session, or human-interaction changes; run conformance, consumer, benchmark, or release checks when those boundaries change.
 
+When changing the skill evolution loop, run:
+
+```bash
+python -m unittest discover -s skills/juanpage-agent/tests -p "test_*.py" -v
+```
+
 Tests must prove semantics, not just appearance:
 
 - every visible control has a working affordance and binding;
@@ -127,7 +133,7 @@ python skills/juanpage-agent/scripts/evolve.py propose \
   --evidence tests/page.test.ts
 ```
 
-Promote a candidate only after confirming that it is general, non-duplicative, compatible with the canonical source, and supported by passing tests or a validated example:
+The candidate records the canonical snapshot and Git blob digest of each evidence file. Promote it only after confirming that it is general, non-duplicative, compatible with the canonical source, and supported by passing tests or a validated example:
 
 ```bash
 python skills/juanpage-agent/scripts/evolve.py promote \
@@ -136,7 +142,7 @@ python skills/juanpage-agent/scripts/evolve.py promote \
   --approved-by <reviewer-or-agent-id>
 ```
 
-Promotion appends a traceable lesson to `references/learned-patterns.md`; it does not alter protocol code. Commit the candidate, promoted lesson, snapshot, tests, and related code/doc changes together for review.
+Promotion must fail if canonical source or any evidence file changed after proposal. Re-review and re-propose rather than approving stale evidence. Promotion appends a traceable lesson to `references/learned-patterns.md`; it does not alter protocol code. Commit the candidate, promoted lesson, snapshot, tests, and related code or documentation together for review.
 
 Never learn permission from labels, prose, model confidence, screenshots, or successful appearance. Never auto-promote a lesson without evidence and an explicit approval identity.
 
@@ -157,7 +163,7 @@ For a design or implementation task, return or commit:
 1. the canonical semantic model or code change;
 2. the typed interaction and authority behavior;
 3. validation and test evidence;
-4. migration/removal work when the canonical model changed;
+4. migration or removal work when the canonical model changed;
 5. a skill evolution candidate only when a genuinely reusable lesson was discovered.
 
 Keep explanations in plain English and distinguish implemented behavior from proposals.
