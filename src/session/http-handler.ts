@@ -138,7 +138,7 @@ export function createAgentHumanSessionHttpHandler(
     if (request.method === "OPTIONS") {
       const headers = responseHeaders(request, options);
       headers.set("access-control-allow-methods", "GET, PUT, DELETE, OPTIONS");
-      headers.set("access-control-allow-headers", "authorization, content-type, if-match");
+      headers.set("access-control-allow-headers", "authorization, content-type, if-match, if-none-match");
       headers.set("access-control-max-age", "600");
       return new Response(null, { status: 204, headers });
     }
@@ -230,7 +230,7 @@ export function createAgentHumanSessionHttpHandler(
           [subjectKey]: existing?.metadata?.[subjectKey] ?? principal.subject,
         },
       });
-      const saved = await options.store.put(normalized, existing?.revision);
+      const saved = await options.store.put(normalized, existing ? existing.revision : null);
       return jsonResponse(request, options, existing ? 200 : 201, saved, saved.revision);
     } catch (error) {
       if (error instanceof AgentHumanSessionConflictError) {
