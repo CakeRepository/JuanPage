@@ -8,7 +8,7 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? "line" : "list",
   use: {
-    baseURL: "http://127.0.0.1:5173/juanpager/",
+    baseURL: "http://127.0.0.1:5173/JuanPage/",
     headless: true,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",

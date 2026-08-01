@@ -1,8 +1,9 @@
 import { defineConfig } from "vitest/config";
 import { resolve } from "node:path";
 
-// GitHub Pages project site base. Change if the repository name differs.
-const base = process.env.JUANPAGER_BASE ?? "/juanpager/";
+// Keep production assets relative so GitHub Pages continues to work after a
+// repository rename or when the runtime is hosted beneath another base path.
+const base = process.env.JUANPAGER_BASE ?? "./";
 
 export default defineConfig({
   base,

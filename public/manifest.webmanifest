@@ -2,9 +2,9 @@
   "name": "JuanPager",
   "short_name": "JuanPager",
   "description": "One trusted adaptive human surface for agent and tool meaning.",
-  "id": "/juanpager/",
-  "start_url": "/juanpager/",
-  "scope": "/juanpager/",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
   "background_color": "#08090d",
@@ -23,12 +23,12 @@
     {
       "name": "Open JuanPager",
       "short_name": "Open",
-      "url": "/juanpager/"
+      "url": "./"
     },
     {
       "name": "Build a JuanPage",
       "short_name": "Build",
-      "url": "/juanpager/builder.html"
+      "url": "./builder.html"
     }
   ]
 }

@@ -1,5 +1,7 @@
+const runtimeBase = new URL("./", document.baseURI);
+
 window.JUANPAGER_CONFIG = {
-  basePath: "/juanpager/",
-  docsUrl: "https://github.com/CakeRepository/juanpager#readme",
+  basePath: runtimeBase.pathname,
+  docsUrl: "https://github.com/CakeRepository/JuanPage#readme",
   sessionEndpoint: "",
 };

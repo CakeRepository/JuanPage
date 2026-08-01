@@ -63,5 +63,5 @@ export function docsUrl(): string {
       ? (window as Window & { JUANPAGER_CONFIG?: { docsUrl?: string } }).JUANPAGER_CONFIG
           ?.docsUrl
       : undefined;
-  return configured ?? "https://github.com/CakeRepository/juanpager#readme";
+  return configured ?? "https://github.com/CakeRepository/JuanPage#readme";
 }
