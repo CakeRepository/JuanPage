@@ -23,3 +23,11 @@ Before promotion, verify that the canonical snapshot and every evidence file sti
 Evidence: `skills/juanpage-agent/scripts/evolve.py`, `skills/juanpage-agent/tests/test_evolve.py`.
 
 Promotion: `lesson:67ad9701d3d3a5e4` approved by `juanpage-agent:self-evolution-audit` on `2026-08-01T04:48:00Z`.
+
+## Use the active Python interpreter
+
+When an evolution test or helper launches Python, invoke sys.executable rather than a bare python command so it uses the validated interpreter and does not depend on a PATH alias.
+
+Evidence: `.github/workflows/ci.yml`, `skills/juanpage-agent/tests/test_evolve.py`.
+
+Promotion: `lesson:308b3614a62a9626` approved by `juanpage-agent:self-evolution-audit-2` on `2026-08-01T04:54:00Z`.
