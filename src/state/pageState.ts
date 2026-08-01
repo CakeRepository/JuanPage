@@ -63,6 +63,7 @@ export class PageTransactionConflictError extends Error {
 
 export type PageState = {
   values: Record<string, Record<string, PageScalar>>;
+  baseValues: Record<string, Record<string, PageScalar>>;
   scopes: Record<string, PageScalar>;
   selections: Record<string, string[]>;
   expansions: Record<string, string[]>;
@@ -94,12 +95,27 @@ function cloneStrings(values: readonly string[] | undefined): string[] {
   return values ? [...values] : [];
 }
 
+function scalar(value: PageValue | undefined): value is PageScalar {
+  return value === null || typeof value === "string" || typeof value === "boolean" || typeof value === "number";
+}
+
+function originalScalarValues(page: JuanPageDocument): Record<string, Record<string, PageScalar>> {
+  const result: Record<string, Record<string, PageScalar>> = {};
+  for (const object of page.objects) {
+    const fields: Record<string, PageScalar> = {};
+    for (const field of object.fields ?? []) if (scalar(field.value)) fields[field.key] = field.value;
+    if (Object.keys(fields).length) result[object.id] = fields;
+  }
+  return result;
+}
+
 function initialState(page: JuanPageDocument): PageState {
   const scopes: Record<string, PageScalar> = {};
   for (const scope of page.scopes ?? []) if (scope.initial !== undefined) scopes[scope.id] = scope.initial;
   Object.assign(scopes, page.state?.scopes ?? {});
   return {
     values: {},
+    baseValues: originalScalarValues(page),
     scopes,
     selections: Object.fromEntries(Object.entries(page.state?.selections ?? {}).map(([name, values]) => [name, [...values]])),
     expansions: Object.fromEntries(Object.entries(page.state?.expansions ?? {}).map(([name, values]) => [name, [...values]])),
@@ -186,6 +202,7 @@ export function loadPageState(key: string, page: JuanPageDocument): PageState {
     }
     return {
       values: parsed.values && typeof parsed.values === "object" ? parsed.values : {},
+      baseValues: fallback.baseValues,
       scopes: { ...fallback.scopes, ...(restored.scopes ?? {}) },
       selections: Object.fromEntries(Object.entries(restored.selections ?? fallback.selections).map(([name, values]) => [name, [...values]])),
       expansions: Object.fromEntries(Object.entries(restored.expansions ?? fallback.expansions).map(([name, values]) => [name, [...values]])),
@@ -336,7 +353,7 @@ export function effectivePageObjects(page: JuanPageDocument, state: PageState): 
 }
 
 export function setPageValue(state: PageState, target: string, field: string, value: PageScalar, label = `Set ${field}`): void {
-  const before = state.values[target]?.[field];
+  const before = state.values[target]?.[field] ?? state.baseValues[target]?.[field];
   if (equal(before, value)) return;
   commitSingle(state, label, { domain: "value", target, field, before, after: value }, { kind: "set", target, field, value });
 }
@@ -429,7 +446,7 @@ export function resetPageToInitial(
 
   for (const [objectId, fields] of Object.entries(state.values)) {
     for (const [field, before] of Object.entries(fields)) {
-      patches.push({ domain: "value", target: objectId, field, before, after: undefined });
+      patches.push({ domain: "value", target: objectId, field, before, after: target.baseValues[objectId]?.[field] });
     }
   }
 
