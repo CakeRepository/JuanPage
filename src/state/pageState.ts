@@ -240,8 +240,8 @@ function assertPatchPrecondition(
 }
 
 function applyPatch(state: PageState, patch: PageStatePatch, side: "before" | "after"): void {
-  const value = patch[side];
   if (patch.domain === "value") {
+    const value = patch[side];
     if (value === undefined) {
       const current = { ...(state.values[patch.target] ?? {}) };
       delete current[patch.field];
@@ -251,15 +251,18 @@ function applyPatch(state: PageState, patch: PageStatePatch, side: "before" | "a
     return;
   }
   if (patch.domain === "scope") {
+    const value = patch[side];
     if (value === undefined || value === null) delete state.scopes[patch.key];
     else state.scopes[patch.key] = value;
     return;
   }
   if (patch.domain === "selection") {
+    const value = patch[side];
     if (value === undefined) delete state.selections[patch.key];
     else state.selections[patch.key] = [...value];
     return;
   }
+  const value = patch[side];
   if (patch.state === "focus") {
     state.focus = typeof value === "string" ? value : undefined;
     return;
