@@ -85,16 +85,24 @@ test("search, group filtering, and inspection are portable human state", async (
   await expect(reopened.locator(".jp-u-inspector")).toContainText("Agent 2.4 rollout");
 });
 
-test("reset is a typed reversible transaction", async ({ page }) => {
+test("reset is a typed reversible transaction that restores the original M1 fact", async ({ page, context }) => {
   await page.goto("./");
   const ring = page.locator('[data-affordance-id="a:ring"] select');
   await ring.selectOption({ label: "Broad" });
   await expect(page.locator('[data-affordance-id="a:ring"] select')).toHaveValue("1");
+  const broadUrl = page.url();
 
   await page.getByRole("button", { name: "Reset" }).click();
   await expect(page.locator('[data-affordance-id="a:ring"] select')).toHaveValue("0");
-  await expect(page.getByRole("button", { name: "Undo" })).toBeEnabled();
+  await expect.poll(() => page.url()).not.toBe(broadUrl);
+  const resetUrl = page.url();
 
+  const reopened = await context.newPage();
+  await reopened.goto(resetUrl);
+  await expect(reopened.locator('[data-affordance-id="a:ring"] select')).toHaveValue("0");
+  await expect(reopened.locator('[data-object-id="e:release"]')).toContainText("Pilot only");
+
+  await expect(page.getByRole("button", { name: "Undo" })).toBeEnabled();
   await page.getByRole("button", { name: "Undo" }).click();
   await expect(page.locator('[data-affordance-id="a:ring"] select')).toHaveValue("1");
 });
