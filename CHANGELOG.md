@@ -21,6 +21,10 @@ All notable changes are documented here. Package releases use Semantic Versionin
 - Release tarballs, CycloneDX SBOMs, SHA-256 checksums, benchmark evidence, npm provenance configuration, and tag/version identity checks.
 - Security policy, threat model, ADRs, conformance levels, performance budgets, versioning, and contributor documentation.
 - An architecture gate that requires retired schema, renderer, encoding, state, receipt, dialect, example, test, documentation, and visual-system files to remain absent.
+- A CI-enforced universal interface capability atlas and theory-of-everything admission contract.
+- Compact M1-compatible semantic value tuples for time, space, content, media, units, uncertainty, distributions, and matrices.
+- Generalized deterministic semantic projection families for categorical, temporal, matrix, hierarchy, network, spatial, document, and ordered-stream representations.
+- Public SDK exports and executable hostile-input, M1 materialization, renderer, projection determinism, and hierarchy-cycle tests for the universal value and projection foundations.
 
 ### Removed
 
@@ -36,6 +40,7 @@ All notable changes are documented here. Package releases use Semantic Versionin
 - Duplicate nonces, altered payloads, expired envelopes, excessive lifetimes, revoked keys, out-of-window keys, missing capabilities, unknown keys, invalid delegation, malformed timestamps, wrong audiences, and unsupported algorithms fail closed.
 - Untrusted packets retain safe local interaction while invocation and navigation authority are removed.
 - Persisted replay state fails closed when corrupt.
+- Reserved semantic value tags fail closed when their tuple shape, URL policy, bounds, matrix dimensions, point counts, range ordering, or uncertainty constraints are invalid.
 
 ### Breaking
 
@@ -45,6 +50,7 @@ All notable changes are documented here. Package releases use Semantic Versionin
 - Share fragments v1 through v4 are replaced by v5.
 - Verification now enforces a default maximum envelope lifetime of five minutes unless explicitly widened by verifier policy.
 - A requested direct-key capability must be explicitly present on the verification key when no delegation chain is supplied.
+- Scalar lists beginning with a reserved universal value tag must now satisfy that tag's typed tuple contract.
 
 ### Compatibility
 
@@ -53,6 +59,7 @@ All notable changes are documented here. Package releases use Semantic Versionin
 - `universal.css` is the only runtime visual system.
 - M1 remains semantic transport rather than a component tree.
 - Raw unsigned M1 remains available for informational rendering but is not trusted invocation or navigation authority.
+- Universal values travel through the existing M1 Fact opcode and JuanPage field contract; no parallel transport or document format was introduced.
 
 ## 0.1.0 - Unpublished
 

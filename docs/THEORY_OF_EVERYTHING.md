@@ -78,13 +78,37 @@ JuanPage 2.0 already has a strong universal kernel:
 
 This kernel covers records, common controls, operational dashboards, approvals, catalog-like experiences, checklists, forms, and basic data exploration without a component tree.
 
+## Implementation ledger
+
+### Tranche 1: universal values and projections
+
+Implemented:
+
+- compact typed values for instants, intervals, durations, recurrence, coordinates, bounds, paths, geometry, content, ranges, media, time ranges, quantities, uncertainty, distributions, and matrices;
+- direct use of those tuples as ordinary M1 facts and JuanPage fields;
+- reserved-tag validation so malformed semantic tuples fail closed instead of becoming untyped lists;
+- generalized deterministic projection families for categorical, temporal, matrix, hierarchy, network, spatial, document, and ordered-stream meaning;
+- hierarchy cycle rejection, safe resource URL validation, explicit size bounds, and executable tests;
+- public SDK exports and a normative contract in `spec/UNIVERSAL_VALUES.md`.
+
+This tranche does not add a calendar, map, tree, graph, editor, chat, or media component format. The same objects, fields, relations, values, and identities feed every projection family.
+
+Current atlas score after this tranche:
+
+- 3 implemented domains;
+- 9 partial domains;
+- 1 missing domain;
+- 100% accounting completeness.
+
+The remaining fully missing domain is simulation-grade interaction. Spatial representation is no longer missing because coordinates, bounds, paths, geometry, and spatial projection are now executable, but viewport state and adaptive spatial rendering still keep it partial.
+
 ## Canonical expansion sequence
 
 The next work should expand the semantic kernel rather than add one-off widgets.
 
-### 1. Universal value algebra
+### 1. Universal value algebra — implemented foundation
 
-Add typed values for:
+Implemented typed values for:
 
 - instants, intervals, durations, and recurrence;
 - coordinates, bounds, paths, and geometry;
@@ -92,11 +116,11 @@ Add typed values for:
 - media resources, tracks, and time ranges;
 - uncertainty, units, distributions, and matrices.
 
-Values must remain data-only, bounded, serializable, safe to validate, and transportable through M1.
+Values are data-only, bounded, serializable, safe to validate, and transportable through ordinary M1 facts. See `spec/UNIVERSAL_VALUES.md`.
 
-### 2. Generalized projection algebra
+### 2. Generalized projection algebra — implemented foundation
 
-Replace the assumption that a projection is only a one-dimensional aggregate with semantic projection families:
+Implemented semantic projection families for:
 
 - categorical and quantitative;
 - temporal;
@@ -107,9 +131,9 @@ Replace the assumption that a projection is only a one-dimensional aggregate wit
 - document;
 - ordered stream.
 
-These are descriptions of relationships and measures, not instructions to draw a particular chart or component.
+The evaluator produces deterministic semantic results with source object and relation identities. Adaptive visual projection and direct manipulation remain renderer work, not new schema work.
 
-### 3. Universal interaction state
+### 3. Universal interaction state — next
 
 Extend typed state beyond scopes and selections to include:
 

@@ -5,6 +5,8 @@ const UNIVERSAL_SURFACES = [
   "src/builder.ts",
   "src/rendering/renderPage.ts",
   "src/state/pageState.ts",
+  "src/schema/value.ts",
+  "src/projection/universal.ts",
   "src/protocol/meaning.ts",
   "src/encoding/pagePipeline.ts",
   "src/transport/adapters.ts",
@@ -14,6 +16,8 @@ const UNIVERSAL_SURFACES = [
   "scripts/decode.ts",
   "tests/page.test.ts",
   "tests/renderPage.test.ts",
+  "tests/universal-value.test.ts",
+  "tests/universal-projection.test.ts",
   "tests/meaning.test.ts",
   "tests/transport.test.ts",
   "tests/adapters.test.ts",
@@ -88,6 +92,8 @@ const REQUIRED_IMPORTS: Record<string, readonly string[]> = {
   "src/builder.ts": ["/schema/page", "/rendering/renderPage", "/encoding/pagePipeline", "/protocol/meaning"],
   "src/rendering/renderPage.ts": ["/schema/page", "/state/pageState"],
   "src/state/pageState.ts": ["/schema/page"],
+  "src/schema/value.ts": ["./limits", "./url"],
+  "src/projection/universal.ts": ["/schema/page", "/schema/value"],
   "src/protocol/meaning.ts": ["/schema/page"],
   "src/encoding/pagePipeline.ts": ["/schema/page", "/protocol/meaning"],
   "src/transport/adapters.ts": ["/protocol/meaning"],
@@ -96,6 +102,8 @@ const REQUIRED_IMPORTS: Record<string, readonly string[]> = {
   "scripts/decode.ts": ["/encoding/pagePipeline"],
   "tests/page.test.ts": ["/schema/page", "/schema/errors", "/encoding/pagePipeline"],
   "tests/renderPage.test.ts": ["/rendering/renderPage", "/protocol/meaning"],
+  "tests/universal-value.test.ts": ["/schema/page", "/protocol/meaning", "/rendering/renderPage"],
+  "tests/universal-projection.test.ts": ["/projection/universal", "/schema/page"],
   "tests/meaning.test.ts": ["/protocol/meaning", "/encoding/pagePipeline"],
   "tests/transport.test.ts": ["/transport/adapters", "/protocol/meaning"],
   "tests/adapters.test.ts": ["/adapters", "/protocol/meaning"],
@@ -150,15 +158,50 @@ for (const [path, source] of [["index.html", indexHtml], ["builder.html", builde
 
 const pageSchema = await readFile("src/schema/page.ts", "utf8");
 if (!pageSchema.includes('version: z.literal("2.0")')) failures.push("The canonical page schema must be JuanPage 2.0.");
-for (const concept of ["pageAffordanceSchema", "pageBindingSchema", "pageScopeSchema", "pageProjectionSchema"] as const) {
-  if (!pageSchema.includes(concept)) failures.push(`JuanPage 2.0 must define ${concept}.`);
+for (const concept of ["pageAffordanceSchema", "pageBindingSchema", "pageScopeSchema", "pageProjectionSchema", "pageValueSchema"] as const) {
+  if (!pageSchema.includes(concept)) failures.push(`JuanPage 2.0 must define or import ${concept}.`);
 }
+if (!pageSchema.includes('/value.js')) failures.push("JuanPage 2.0 fields must use the universal value algebra.");
 if (pageSchema.includes("actionIds") || pageSchema.includes("pageActionSchema")) {
   failures.push("JuanPage 2.0 may not retain the retired object-owned action model.");
 }
 if (pageSchema.includes("defaultLens") || pageSchema.includes("groupBy") || pageSchema.includes("density")) {
   failures.push("JuanPage 2.0 may not let the producer author runtime layout modes.");
 }
+
+const valueSchema = await readFile("src/schema/value.ts", "utf8");
+for (const tag of [
+  "instant",
+  "interval",
+  "duration",
+  "recurrence",
+  "coordinate",
+  "bounds",
+  "path",
+  "geometry",
+  "content",
+  "content-range",
+  "media",
+  "time-range",
+  "quantity",
+  "uncertainty",
+  "distribution",
+  "matrix",
+] as const) {
+  if (!valueSchema.includes(`z.literal("${tag}")`)) failures.push(`The universal value algebra is missing ${tag}.`);
+}
+if (valueSchema.includes("innerHTML") || valueSchema.includes("componentType") || valueSchema.includes("render:")) {
+  failures.push("Universal values must remain data-only and may not carry executable or component rendering instructions.");
+}
+
+const projectionKernel = await readFile("src/projection/universal.ts", "utf8");
+for (const family of ["categorical", "temporal", "matrix", "hierarchy", "network", "spatial", "document", "stream"] as const) {
+  if (!projectionKernel.includes(`z.literal("${family}")`)) failures.push(`The generalized projection algebra is missing ${family}.`);
+}
+for (const componentName of ["calendarComponent", "mapComponent", "chartComponent", "treeComponent", "chatComponent"] as const) {
+  if (projectionKernel.includes(componentName)) failures.push(`Projection semantics may not introduce component instruction ${componentName}.`);
+}
+if (!projectionKernel.includes("evaluateSemanticProjection")) failures.push("The generalized projection algebra must expose deterministic evaluation.");
 
 const meaning = await readFile("src/protocol/meaning.ts", "utf8");
 if (!meaning.includes("materializeMeaningPacket")) failures.push("M1 must materialize into JuanPage 2.0.");
@@ -182,4 +225,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log("One-schema invariant verified: retired schema, renderer behavior, source adapters, and visual-system files are absent; M1 compiles into JuanPage 2.0; renderPage is the only renderer; information is inert without bindings; and human facts, scopes, selections, and operations produce typed deltas and receipts.");
+console.log("One-schema invariant verified: retired schema, renderer behavior, source adapters, and visual-system files are absent; M1 compiles into JuanPage 2.0; universal values remain data-only and M1-compatible; generalized projections remain semantic rather than component instructions; renderPage is the only renderer; information is inert without bindings; and human facts, scopes, selections, and operations produce typed deltas and receipts.");

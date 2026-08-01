@@ -1,4 +1,5 @@
 export * from "./schema/page.js";
+export * from "./projection/universal.js";
 export * from "./protocol/meaning.js";
 export * from "./protocol/envelope.js";
 export * from "./protocol/trust-projection.js";
