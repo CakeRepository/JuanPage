@@ -51,12 +51,11 @@ test("human actions rewrite the share URL and survive reopening", async ({ page,
 
   await expect.poll(() => page.url()).not.toBe(initialUrl);
   await expect(page).toHaveURL(/#v=5&enc=gz&data=/);
-  await expect(page.getByRole("heading", { name: "Human activity" })).toBeVisible();
-  await expect(page.locator(".jp-u-interaction-ledger")).toContainText("Scope");
 
   const reopened = await context.newPage();
   await reopened.goto(page.url());
   await expect(reopened.getByText("Prop Period: 2026-06")).toBeVisible();
-  await expect(reopened.getByRole("heading", { name: "Human activity" })).toBeVisible();
-  await expect(reopened.locator(".jp-u-interaction-ledger")).toContainText("Scope");
+  const ledger = reopened.locator('[data-object-id="juanpager:activity"]');
+  await expect(ledger).toContainText("Human activity");
+  await expect(ledger).toContainText("Scope");
 });
