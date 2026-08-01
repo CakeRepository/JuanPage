@@ -24,7 +24,13 @@ All notable changes are documented here. Package releases use Semantic Versionin
 - A CI-enforced universal interface capability atlas and theory-of-everything admission contract.
 - Compact M1-compatible semantic value tuples for time, space, content, media, units, uncertainty, distributions, and matrices.
 - Generalized deterministic semantic projection families for categorical, temporal, matrix, hierarchy, network, spatial, document, and ordered-stream representations.
-- Public SDK exports and executable hostile-input, M1 materialization, renderer, projection determinism, and hierarchy-cycle tests for the universal value and projection foundations.
+- Universal interaction state for expansions, paths, viewports, ranges, playheads, ordering, grouping, focus restoration, and simulation clocks.
+- Adaptive `renderPage` representations for all eight semantic projection families with working direct manipulation.
+- Atomic multi-patch page transactions with precondition checks, fail-closed conflicts, commit, cancel, undo, and redo.
+- M1-compatible interaction-state and transaction operations with record-only session replay and local action receipts.
+- Public `juanpager/renderer`, `juanpager/state`, and `juanpager/interaction` package entrypoints.
+- Reduced-motion, increased-contrast, keyboard, semantic-role, native-control, and focus-restoration coverage for universal projections.
+- Executable tests for projection rendering, viewports, hierarchy expansion, clocks, transaction conflicts, M1 state replay, undo, and redo.
 
 ### Removed
 
@@ -41,6 +47,8 @@ All notable changes are documented here. Package releases use Semantic Versionin
 - Untrusted packets retain safe local interaction while invocation and navigation authority are removed.
 - Persisted replay state fails closed when corrupt.
 - Reserved semantic value tags fail closed when their tuple shape, URL policy, bounds, matrix dimensions, point counts, range ordering, or uncertainty constraints are invalid.
+- Transaction precondition mismatches fail atomically without partially mutating page state.
+- Universal state values remain bounded data and cannot carry markup, code, callbacks, components, or renderer instructions.
 
 ### Breaking
 
@@ -60,6 +68,7 @@ All notable changes are documented here. Package releases use Semantic Versionin
 - M1 remains semantic transport rather than a component tree.
 - Raw unsigned M1 remains available for informational rendering but is not trusted invocation or navigation authority.
 - Universal values travel through the existing M1 Fact opcode and JuanPage field contract; no parallel transport or document format was introduced.
+- Universal interaction state and transactions travel through ordinary M1 action deltas; no second session or state protocol was introduced.
 
 ## 0.1.0 - Unpublished
 
