@@ -1,0 +1,34 @@
+{
+  "name": "JuanPager",
+  "short_name": "JuanPager",
+  "description": "One trusted adaptive human surface for agent and tool meaning.",
+  "id": "/juanpager/",
+  "start_url": "/juanpager/",
+  "scope": "/juanpager/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "background_color": "#08090d",
+  "theme_color": "#08090d",
+  "orientation": "any",
+  "categories": ["productivity", "utilities", "business"],
+  "icons": [
+    {
+      "src": "juan-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Open JuanPager",
+      "short_name": "Open",
+      "url": "/juanpager/"
+    },
+    {
+      "name": "Build a JuanPage",
+      "short_name": "Build",
+      "url": "/juanpager/builder.html"
+    }
+  ]
+}
