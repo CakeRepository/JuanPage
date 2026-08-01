@@ -31,6 +31,17 @@ const page = validatePage({
     name: "Test the runtime",
     fields: [{ key: "done", value: false }],
   }],
+  affordances: [{
+    id: "select:task",
+    label: "Select task",
+    effect: { kind: "select", selection: "tasks", mode: "multiple" },
+    input: { kind: "none" },
+  }],
+  bindings: [{
+    id: "bind:select:task",
+    target: { kind: "object", object: "task:one" },
+    affordance: "select:task",
+  }],
   state: { selections: { tasks: [] } },
 });
 
