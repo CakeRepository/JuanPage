@@ -133,6 +133,24 @@ Do not encode scope as a fact edit, inspection as invocation, approval as displa
 
 Validate with the repository’s exported validators or the same code path used by production. Do not rely on visual plausibility.
 
+## Generate repository examples
+
+When the user explicitly asks to add a demo or example to the JuanPager repository, keep that workflow inside this skill rather than creating another JuanPage skill.
+
+1. Read `references/generation-contract.md`.
+2. Optionally create a minimal typed starting file:
+
+   ```bash
+   python3 skills/juanpage-agent/scripts/scaffold_page.py \
+     --slug <example-slug> \
+     --title "<page title>" \
+     --object-name "<root object name>"
+   ```
+
+3. Replace the scaffold with the complete semantic model.
+4. Add a focused `validatePage` test proving the important affordances, bindings, state, and authority behavior.
+5. Keep the public deliverable a hosted JuanPage URL unless the user specifically requested repository source.
+
 ## Verify behavior
 
 For generated pages, prove at minimum:
