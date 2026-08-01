@@ -108,7 +108,7 @@ export const semanticProjectionSchema = z.discriminatedUnion("family", [
 
 export type SemanticProjection = z.infer<typeof semanticProjectionSchema>;
 
-type ProjectionSource = Readonly<{
+export type SemanticProjectionSource = Readonly<{
   objects: readonly PageObject[];
   relations?: readonly PageRelation[];
 }>;
@@ -116,7 +116,7 @@ type ProjectionSource = Readonly<{
 type CategoricalResult = Readonly<{
   family: "categorical";
   projectionId: string;
-  buckets: readonly Readonly<{ key: PageScalar; label: string; value: number; objectIds: readonly string[] }>[];
+  buckets: readonly Readonly<{ key: PageScalar; label: string; value: number; unit?: string; objectIds: readonly string[] }>[];
 }>;
 
 type TemporalResult = Readonly<{
@@ -129,6 +129,7 @@ type TemporalResult = Readonly<{
     end?: string;
     lane?: string;
     value?: number;
+    unit?: string;
   }>[];
 }>;
 
@@ -137,28 +138,28 @@ type MatrixResult = Readonly<{
   projectionId: string;
   rows: readonly string[];
   columns: readonly string[];
-  cells: readonly Readonly<{ row: string; column: string; value: number; objectIds: readonly string[] }>[];
+  cells: readonly Readonly<{ row: string; column: string; value: number; unit?: string; objectIds: readonly string[] }>[];
 }>;
 
 type HierarchyResult = Readonly<{
   family: "hierarchy";
   projectionId: string;
   roots: readonly string[];
-  nodes: readonly Readonly<{ objectId: string; label: string; parentId?: string; order: number }>[];
+  nodes: readonly Readonly<{ objectId: string; label: string; parentId?: string; order: number }> [];
 }>;
 
 type NetworkResult = Readonly<{
   family: "network";
   projectionId: string;
   directed: boolean;
-  nodes: readonly Readonly<{ objectId: string; label: string; type: string }>[];
-  edges: readonly Readonly<{ relationId: string; from: string; to: string; kind: string; label?: string; weight?: number }>[];
+  nodes: readonly Readonly<{ objectId: string; label: string; type: string }> [];
+  edges: readonly Readonly<{ relationId: string; from: string; to: string; kind: string; label?: string; weight?: number; weightUnit?: string }> [];
 }>;
 
 type SpatialResult = Readonly<{
   family: "spatial";
   projectionId: string;
-  features: readonly Readonly<{ objectId: string; label: string; geometry: SemanticValue }>[];
+  features: readonly Readonly<{ objectId: string; label: string; geometry: SemanticValue }> [];
 }>;
 
 type DocumentResult = Readonly<{
@@ -170,7 +171,7 @@ type DocumentResult = Readonly<{
     content: PageValue;
     range?: SemanticValue;
     order: number;
-  }>[];
+  }> [];
 }>;
 
 type StreamResult = Readonly<{
@@ -183,7 +184,7 @@ type StreamResult = Readonly<{
     author?: string;
     thread?: string;
     content?: PageValue;
-  }>[];
+  }> [];
 }>;
 
 export type SemanticProjectionResult =
@@ -217,11 +218,33 @@ function label(value: PageValue | undefined): string | undefined {
   return String(primitive);
 }
 
-function numberValue(value: PageValue | undefined): number | undefined {
-  if (typeof value === "number") return value;
+type NumericMeasure = Readonly<{ value: number; unit?: string }>;
+
+function measureValue(value: PageValue | undefined): NumericMeasure | undefined {
+  if (typeof value === "number") return { value };
   if (!isSemanticValue(value)) return undefined;
-  if (value[0] === "quantity" || value[0] === "uncertainty" || value[0] === "duration") return value[1];
+  if (value[0] === "quantity") return { value: value[1], unit: value[2] };
+  if (value[0] === "duration") return { value: value[1], unit: value[2] };
+  if (value[0] === "uncertainty") return { value: value[1] };
   return undefined;
+}
+
+function numberValue(value: PageValue | undefined): number | undefined {
+  return measureValue(value)?.value;
+}
+
+function appendMeasure(
+  projectionId: string,
+  bucket: { values: number[]; unit?: string; unitKnown: boolean },
+  measure: NumericMeasure,
+): void {
+  if (!bucket.unitKnown) {
+    bucket.unit = measure.unit;
+    bucket.unitKnown = true;
+  } else if (bucket.unit !== measure.unit) {
+    throw new Error(`Projection ${projectionId} cannot aggregate incompatible units ${bucket.unit ?? "unitless"} and ${measure.unit ?? "unitless"}`);
+  }
+  bucket.values.push(measure.value);
 }
 
 function instantValue(value: PageValue | undefined, edge: "start" | "end" = "start"): string | undefined {
@@ -241,7 +264,7 @@ function aggregateValues(operation: "count" | "sum" | "average" | "min" | "max",
   return Math.max(...values);
 }
 
-function sourceObjects(source: ProjectionSource, projection: SemanticProjection): PageObject[] {
+function sourceObjects(source: SemanticProjectionSource, projection: SemanticProjection): PageObject[] {
   const objects = source.objects.filter((object) =>
     (!projection.sourceType || object.type === projection.sourceType)
     && (!projection.sourceGroup || object.group === projection.sourceGroup),
@@ -249,23 +272,24 @@ function sourceObjects(source: ProjectionSource, projection: SemanticProjection)
   return projection.limit ? objects.slice(0, projection.limit) : objects;
 }
 
-function evaluateCategorical(source: ProjectionSource, projection: Extract<SemanticProjection, { family: "categorical" }>): CategoricalResult {
-  const buckets = new Map<string, { key: PageScalar; values: number[]; objectIds: string[] }>();
+function evaluateCategorical(source: SemanticProjectionSource, projection: Extract<SemanticProjection, { family: "categorical" }>): CategoricalResult {
+  const buckets = new Map<string, { key: PageScalar; values: number[]; unit?: string; unitKnown: boolean; objectIds: string[] }>();
   for (const object of sourceObjects(source, projection)) {
     const keyValue = scalar(fieldValue(object, projection.dimension));
     if (keyValue === undefined || keyValue === null) continue;
     const bucketKey = JSON.stringify(keyValue);
-    const bucket = buckets.get(bucketKey) ?? { key: keyValue, values: [], objectIds: [] };
-    const measure = projection.aggregate === "count" ? 1 : numberValue(fieldValue(object, projection.measure!));
-    if (measure === undefined) continue;
-    bucket.values.push(measure);
+    const bucket = buckets.get(bucketKey) ?? { key: keyValue, values: [], unitKnown: false, objectIds: [] };
+    const measure = projection.aggregate === "count" ? { value: 1 } : measureValue(fieldValue(object, projection.measure!));
+    if (!measure) continue;
+    appendMeasure(projection.id, bucket, measure);
     bucket.objectIds.push(object.id);
     buckets.set(bucketKey, bucket);
   }
-  let result = [...buckets.values()].map((bucket) => ({
+  const result = [...buckets.values()].map((bucket) => ({
     key: bucket.key,
     label: String(bucket.key),
     value: aggregateValues(projection.aggregate, bucket.values),
+    unit: bucket.unit,
     objectIds: bucket.objectIds,
   }));
   const order = projection.order ?? "key-asc";
@@ -278,7 +302,7 @@ function evaluateCategorical(source: ProjectionSource, projection: Extract<Seman
   return { family: "categorical", projectionId: projection.id, buckets: result };
 }
 
-function evaluateTemporal(source: ProjectionSource, projection: Extract<SemanticProjection, { family: "temporal" }>): TemporalResult {
+function evaluateTemporal(source: SemanticProjectionSource, projection: Extract<SemanticProjection, { family: "temporal" }>): TemporalResult {
   const events = sourceObjects(source, projection).flatMap((object) => {
     const start = instantValue(fieldValue(object, projection.start), "start");
     if (!start) return [];
@@ -287,24 +311,32 @@ function evaluateTemporal(source: ProjectionSource, projection: Extract<Semantic
       ? instantValue(fieldValue(object, projection.end), "end")
       : instantValue(startValue, "end");
     const lane = projection.lane ? label(fieldValue(object, projection.lane)) : undefined;
-    const value = projection.measure ? numberValue(fieldValue(object, projection.measure)) : undefined;
-    return [{ objectId: object.id, label: object.name, start, end: end === start ? undefined : end, lane, value }];
+    const measure = projection.measure ? measureValue(fieldValue(object, projection.measure)) : undefined;
+    return [{
+      objectId: object.id,
+      label: object.name,
+      start,
+      end: end === start ? undefined : end,
+      lane,
+      value: measure?.value,
+      unit: measure?.unit,
+    }];
   });
   events.sort((left, right) => left.start.localeCompare(right.start) || left.objectId.localeCompare(right.objectId));
   return { family: "temporal", projectionId: projection.id, events };
 }
 
-function evaluateMatrix(source: ProjectionSource, projection: Extract<SemanticProjection, { family: "matrix" }>): MatrixResult {
-  const buckets = new Map<string, { row: string; column: string; values: number[]; objectIds: string[] }>();
+function evaluateMatrix(source: SemanticProjectionSource, projection: Extract<SemanticProjection, { family: "matrix" }>): MatrixResult {
+  const buckets = new Map<string, { row: string; column: string; values: number[]; unit?: string; unitKnown: boolean; objectIds: string[] }>();
   for (const object of sourceObjects(source, projection)) {
     const row = label(fieldValue(object, projection.row));
     const column = label(fieldValue(object, projection.column));
     if (!row || !column) continue;
-    const value = projection.aggregate === "count" ? 1 : numberValue(fieldValue(object, projection.measure!));
-    if (value === undefined) continue;
+    const measure = projection.aggregate === "count" ? { value: 1 } : measureValue(fieldValue(object, projection.measure!));
+    if (!measure) continue;
     const keyValue = `${JSON.stringify(row)}:${JSON.stringify(column)}`;
-    const bucket = buckets.get(keyValue) ?? { row, column, values: [], objectIds: [] };
-    bucket.values.push(value);
+    const bucket = buckets.get(keyValue) ?? { row, column, values: [], unitKnown: false, objectIds: [] };
+    appendMeasure(projection.id, bucket, measure);
     bucket.objectIds.push(object.id);
     buckets.set(keyValue, bucket);
   }
@@ -315,6 +347,7 @@ function evaluateMatrix(source: ProjectionSource, projection: Extract<SemanticPr
       row: bucket.row,
       column: bucket.column,
       value: aggregateValues(projection.aggregate, bucket.values),
+      unit: bucket.unit,
       objectIds: bucket.objectIds,
     }))
     .sort((left, right) => left.row.localeCompare(right.row) || left.column.localeCompare(right.column));
@@ -322,7 +355,7 @@ function evaluateMatrix(source: ProjectionSource, projection: Extract<SemanticPr
 }
 
 function hierarchyParentMap(
-  source: ProjectionSource,
+  source: SemanticProjectionSource,
   projection: Extract<SemanticProjection, { family: "hierarchy" }>,
 ): Map<string, string> {
   const parents = new Map<string, string>();
@@ -340,7 +373,7 @@ function hierarchyParentMap(
   return parents;
 }
 
-function evaluateHierarchy(source: ProjectionSource, projection: Extract<SemanticProjection, { family: "hierarchy" }>): HierarchyResult {
+function evaluateHierarchy(source: SemanticProjectionSource, projection: Extract<SemanticProjection, { family: "hierarchy" }>): HierarchyResult {
   const objects = sourceObjects(source, projection);
   const ids = new Set(objects.map((object) => object.id));
   const parents = hierarchyParentMap(source, projection);
@@ -367,7 +400,7 @@ function evaluateHierarchy(source: ProjectionSource, projection: Extract<Semanti
   };
 }
 
-function evaluateNetwork(source: ProjectionSource, projection: Extract<SemanticProjection, { family: "network" }>): NetworkResult {
+function evaluateNetwork(source: SemanticProjectionSource, projection: Extract<SemanticProjection, { family: "network" }>): NetworkResult {
   const objects = sourceObjects(source, projection);
   const ids = new Set(objects.map((object) => object.id));
   const allowedKinds = projection.relationKinds ? new Set(projection.relationKinds) : undefined;
@@ -377,8 +410,16 @@ function evaluateNetwork(source: ProjectionSource, projection: Extract<SemanticP
     && (!allowedKinds || allowedKinds.has(relation.kind)),
   ).map((relation) => {
     const owner = objects.find((object) => object.id === relation.from);
-    const weight = projection.weightField && owner ? numberValue(fieldValue(owner, projection.weightField)) : undefined;
-    return { relationId: relation.id, from: relation.from, to: relation.to, kind: relation.kind, label: relation.label, weight };
+    const weight = projection.weightField && owner ? measureValue(fieldValue(owner, projection.weightField)) : undefined;
+    return {
+      relationId: relation.id,
+      from: relation.from,
+      to: relation.to,
+      kind: relation.kind,
+      label: relation.label,
+      weight: weight?.value,
+      weightUnit: weight?.unit,
+    };
   }).sort((left, right) => left.relationId.localeCompare(right.relationId));
   return {
     family: "network",
@@ -389,7 +430,7 @@ function evaluateNetwork(source: ProjectionSource, projection: Extract<SemanticP
   };
 }
 
-function evaluateSpatial(source: ProjectionSource, projection: Extract<SemanticProjection, { family: "spatial" }>): SpatialResult {
+function evaluateSpatial(source: SemanticProjectionSource, projection: Extract<SemanticProjection, { family: "spatial" }>): SpatialResult {
   const supported = new Set(["coordinate", "bounds", "path", "geometry"]);
   const features = sourceObjects(source, projection).flatMap((object) => {
     const geometry = fieldValue(object, projection.geometryField);
@@ -403,7 +444,7 @@ function evaluateSpatial(source: ProjectionSource, projection: Extract<SemanticP
   return { family: "spatial", projectionId: projection.id, features };
 }
 
-function evaluateDocument(source: ProjectionSource, projection: Extract<SemanticProjection, { family: "document" }>): DocumentResult {
+function evaluateDocument(source: SemanticProjectionSource, projection: Extract<SemanticProjection, { family: "document" }>): DocumentResult {
   const blocks = sourceObjects(source, projection).flatMap((object) => {
     const content = fieldValue(object, projection.contentField);
     if (content === undefined) return [];
@@ -415,7 +456,7 @@ function evaluateDocument(source: ProjectionSource, projection: Extract<Semantic
   return { family: "document", projectionId: projection.id, blocks };
 }
 
-function evaluateStream(source: ProjectionSource, projection: Extract<SemanticProjection, { family: "stream" }>): StreamResult {
+function evaluateStream(source: SemanticProjectionSource, projection: Extract<SemanticProjection, { family: "stream" }>): StreamResult {
   const events = sourceObjects(source, projection).flatMap((object) => {
     const timestamp = instantValue(fieldValue(object, projection.timeField));
     if (!timestamp) return [];
@@ -436,7 +477,7 @@ export function validateSemanticProjection(input: unknown): SemanticProjection {
 }
 
 export function evaluateSemanticProjection(
-  source: ProjectionSource,
+  source: SemanticProjectionSource,
   projectionInput: unknown,
 ): SemanticProjectionResult {
   const projection = validateSemanticProjection(projectionInput);
