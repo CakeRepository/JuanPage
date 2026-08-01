@@ -5,7 +5,6 @@ import { validatePage, type JuanPageDocument } from "../schema/page.js";
 import {
   applyMeaningDelta,
   browserRendererCapabilities,
-  interactionStateFromMeaningDeltas,
   materializeMeaningPacket,
   validateActionReceipt,
   validateMeaningDelta,
@@ -15,6 +14,7 @@ import {
   type MeaningPacket,
   type RendererCapabilities,
 } from "../protocol/meaning.js";
+import { interactionStateFromPageDeltas } from "../protocol/interaction.js";
 import { materializeUntrustedMeaningPacket } from "../protocol/trust-projection.js";
 
 export type PagePayloadEncoding = "gz" | "raw";
@@ -32,12 +32,7 @@ export type MeaningSession = Readonly<{
 export type DecodedPagePayload =
   | Readonly<{ kind: "juanpage"; page: JuanPageDocument }>
   | Readonly<{ kind: "m1"; page: JuanPageDocument; packet: MeaningPacket }>
-  | Readonly<{
-      kind: "m1-session";
-      page: JuanPageDocument;
-      session: MeaningSession;
-      currentPacket: MeaningPacket;
-    }>;
+  | Readonly<{ kind: "m1-session"; page: JuanPageDocument; session: MeaningSession; currentPacket: MeaningPacket }>;
 
 export class PagePayloadError extends Error {
   readonly details: string;
@@ -181,14 +176,16 @@ function materializeRecordOnlySession(
   const projected = materializeMeaningPacket(currentPacket, capabilities);
   const allowedAffordances = (projected.affordances ?? []).filter((affordance) => affordance.effect.kind !== "navigate");
   const allowedIds = new Set(allowedAffordances.map((affordance) => affordance.id));
-  const interactionState = interactionStateFromMeaningDeltas(session.deltas);
-  const notice = "This is a record-only URL session. Your scopes, selections, edits, and decisions are stored as typed deltas in the Share link; nothing executes remotely from this page.";
+  const interactionState = interactionStateFromPageDeltas(session.deltas);
+  const notice = "This is a record-only URL session. Your scopes, selections, edits, viewports, ranges, playheads, paths, clocks, and reversible transactions are stored as typed deltas in the Share link; nothing executes remotely from this page.";
   const page = validatePage({
     ...projected,
     description: projected.description ? `${projected.description} ${notice}` : notice,
     affordances: allowedAffordances,
     bindings: projected.bindings?.filter((binding) => allowedIds.has(binding.affordance)),
     state: {
+      ...(projected.state ?? {}),
+      ...interactionState,
       scopes: { ...(projected.state?.scopes ?? {}), ...(interactionState.scopes ?? {}) },
       selections: { ...(projected.state?.selections ?? {}), ...(interactionState.selections ?? {}) },
     },
