@@ -20,8 +20,10 @@ import {
   materializeMeaningPacket,
   MeaningProtocolError,
   type ActionPolicy,
+  type ActionReceipt,
   type MeaningDelta,
 } from "./protocol/meaning.js";
+import { createInteractionStateDelta, createPageTransactionDelta } from "./protocol/interaction.js";
 import { renderPage, type PageAffordanceInvocation } from "./rendering/renderPage.js";
 import { DocumentValidationError } from "./schema/errors.js";
 import type { JuanPageDocument, PageScalar } from "./schema/page.js";
@@ -76,6 +78,7 @@ function scalarArgs(page: JuanPageDocument, invocation: PageAffordanceInvocation
     objectId: invocation.objectId ?? null,
     value: invocation.value ?? null,
     operation: typeof operation === "string" ? operation : invocation.operation ?? null,
+    focus: invocation.interaction.focus ?? null,
   };
   for (const [scope, value] of Object.entries(invocation.scopes)) args[`scope.${scope}`] = value;
   for (const [selection, values] of Object.entries(invocation.selections)) args[`selection.${selection}`] = values.join(",");
@@ -97,20 +100,33 @@ function createMeaningBridge(
 
   let revision = initialRevision;
   let session = initialSession;
-  const sendDelta = async (delta: MeaningDelta): Promise<void> => {
+  const sendDelta = async (delta: MeaningDelta, receipt?: ActionReceipt): Promise<void> => {
     revision = delta[3];
-    if (session) session = appendMeaningSessionDelta(session, delta);
+    if (session) session = appendMeaningSessionDelta(session, delta, receipt);
     await transport.send(deltaMessage(delta));
+    if (receipt) await transport.send(receiptMessage(receipt));
   };
 
   const interactionListener = (event: Event): void => {
     const mutation = (event as CustomEvent<PageInteractionMutation>).detail;
     if (!mutation) return;
     let delta: MeaningDelta;
+    let receipt: ActionReceipt | undefined;
     if (mutation.kind === "set") delta = createFactDelta(packetId, revision, mutation.target, mutation.field, mutation.value);
     else if (mutation.kind === "scope") delta = createScopeDelta(packetId, revision, mutation.scope, mutation.value);
-    else delta = createSelectionDelta(packetId, revision, mutation.selection, mutation.values);
-    void sendDelta(delta).catch((error) => {
+    else if (mutation.kind === "select") delta = createSelectionDelta(packetId, revision, mutation.selection, mutation.values);
+    else if (mutation.kind === "state") {
+      delta = createInteractionStateDelta(packetId, revision, mutation.state, mutation.key, mutation.value);
+      receipt = createActionReceipt(delta, "succeeded", { execution: "local-state", domain: mutation.state });
+    } else {
+      delta = createPageTransactionDelta(packetId, revision, mutation.transactionId, mutation.action, mutation.patches);
+      receipt = createActionReceipt(delta, mutation.action === "cancel" ? "cancelled" : "succeeded", {
+        execution: "local-transaction",
+        action: mutation.action,
+        patches: mutation.patches.length,
+      });
+    }
+    void sendDelta(delta, receipt).catch((error) => {
       console.error("JuanPager could not record an M1 interaction delta", error);
     });
   };
@@ -136,10 +152,7 @@ function createMeaningBridge(
         transport: transport.name,
         execution: "record-only",
       });
-      revision = delta[3];
-      if (session) session = appendMeaningSessionDelta(session, delta, receipt);
-      await transport.send(deltaMessage(delta));
-      await transport.send(receiptMessage(receipt));
+      await sendDelta(delta, receipt);
     },
   };
 }
@@ -167,9 +180,7 @@ async function bootstrap(): Promise<void> {
     return;
   }
   try {
-    if (fragment.version && fragment.version !== "5") {
-      throw new Error(`Unsupported fragment version v=${fragment.version}. JuanPage 2.0 links use v=5.`);
-    }
+    if (fragment.version && fragment.version !== "5") throw new Error(`Unsupported fragment version v=${fragment.version}. JuanPage 2.0 links use v=5.`);
     const decoded = await decodePagePayload(fragment.data, fragment.encoding as PagePayloadEncoding | undefined);
     if (decoded.kind === "m1-session") {
       render(decoded.page, mount, { session: decoded.session });

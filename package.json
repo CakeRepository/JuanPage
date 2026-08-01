@@ -8,55 +8,21 @@
   "main": "./dist-sdk/index.js",
   "types": "./dist-sdk/index.d.ts",
   "exports": {
-    ".": {
-      "types": "./dist-sdk/index.d.ts",
-      "import": "./dist-sdk/index.js"
-    },
-    "./browser": {
-      "types": "./dist-sdk/index.d.ts",
-      "import": "./dist-sdk/index.js"
-    },
-    "./node": {
-      "types": "./dist-sdk/node.d.ts",
-      "import": "./dist-sdk/node.js"
-    },
-    "./protocol": {
-      "types": "./dist-sdk/protocol/meaning.d.ts",
-      "import": "./dist-sdk/protocol/meaning.js"
-    },
-    "./envelope": {
-      "types": "./dist-sdk/protocol/envelope.d.ts",
-      "import": "./dist-sdk/protocol/envelope.js"
-    },
-    "./transport": {
-      "types": "./dist-sdk/transport/adapters.d.ts",
-      "import": "./dist-sdk/transport/adapters.js"
-    },
-    "./adapters": {
-      "types": "./dist-sdk/adapters/index.d.ts",
-      "import": "./dist-sdk/adapters/index.js"
-    },
-    "./adapters/agui": {
-      "types": "./dist-sdk/adapters/agui.d.ts",
-      "import": "./dist-sdk/adapters/agui.js"
-    },
-    "./adapters/mcp-app": {
-      "types": "./dist-sdk/adapters/mcp-app.d.ts",
-      "import": "./dist-sdk/adapters/mcp-app.js"
-    }
+    ".": { "types": "./dist-sdk/index.d.ts", "import": "./dist-sdk/index.js" },
+    "./browser": { "types": "./dist-sdk/index.d.ts", "import": "./dist-sdk/index.js" },
+    "./renderer": { "types": "./dist-sdk/rendering/renderPage.d.ts", "import": "./dist-sdk/rendering/renderPage.js" },
+    "./state": { "types": "./dist-sdk/state/pageState.d.ts", "import": "./dist-sdk/state/pageState.js" },
+    "./interaction": { "types": "./dist-sdk/protocol/interaction.d.ts", "import": "./dist-sdk/protocol/interaction.js" },
+    "./node": { "types": "./dist-sdk/node.d.ts", "import": "./dist-sdk/node.js" },
+    "./protocol": { "types": "./dist-sdk/protocol/meaning.d.ts", "import": "./dist-sdk/protocol/meaning.js" },
+    "./envelope": { "types": "./dist-sdk/protocol/envelope.d.ts", "import": "./dist-sdk/protocol/envelope.js" },
+    "./transport": { "types": "./dist-sdk/transport/adapters.d.ts", "import": "./dist-sdk/transport/adapters.js" },
+    "./adapters": { "types": "./dist-sdk/adapters/index.d.ts", "import": "./dist-sdk/adapters/index.js" },
+    "./adapters/agui": { "types": "./dist-sdk/adapters/agui.d.ts", "import": "./dist-sdk/adapters/agui.js" },
+    "./adapters/mcp-app": { "types": "./dist-sdk/adapters/mcp-app.d.ts", "import": "./dist-sdk/adapters/mcp-app.js" }
   },
-  "files": [
-    "dist-sdk",
-    "spec",
-    "README.md",
-    "CHANGELOG.md",
-    "SECURITY.md",
-    "LICENSE"
-  ],
-  "publishConfig": {
-    "access": "public",
-    "provenance": true
-  },
+  "files": ["dist-sdk", "spec", "README.md", "CHANGELOG.md", "SECURITY.md", "LICENSE"],
+  "publishConfig": { "access": "public", "provenance": true },
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build && npm run build:sdk",
@@ -85,10 +51,7 @@
     "decode": "tsx scripts/decode.ts",
     "prepack": "npm run build:sdk && npm test"
   },
-  "dependencies": {
-    "fflate": "^0.8.2",
-    "zod": "^3.24.2"
-  },
+  "dependencies": { "fflate": "^0.8.2", "zod": "^3.24.2" },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.51.0",

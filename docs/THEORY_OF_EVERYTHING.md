@@ -1,8 +1,6 @@
 # JuanPager Theory of Everything
 
-JuanPager's goal is not to collect every button, chart, canvas, game control, or historical widget into a larger component library. That approach can never reach completeness because presentation patterns are unbounded.
-
-The goal is **representational completeness**: every useful human interface must be reducible to one semantic world model, one trusted interaction model, one adaptive renderer, and typed human output.
+JuanPager does not attempt to collect every historical widget into a larger component library. Presentation patterns are unbounded. The goal is **representational completeness**: every useful human interface must reduce to one semantic world model, one trusted interaction model, one adaptive renderer, and typed human output.
 
 ```text
 meaning + relationships + state + projection + affordances + authority + modality
@@ -28,9 +26,9 @@ A human interface represents one or more of these domains:
 11. authority, trust, and consequential operations;
 12. alternate sensory and motor modalities.
 
-An interface then gives a human one or more real operations over that representation: inspect, set, scope, select, navigate, copy, invoke, approve, reject, or transact. Presentation is a runtime decision. Meaning and authority are protocol decisions.
+It then gives a human one or more real operations over that representation: inspect, set, scope, select, expand, traverse, pan, zoom, range, play, order, group, transact, navigate, copy, invoke, approve, reject, commit, cancel, undo, or redo. Presentation is a runtime decision. Meaning, state, and authority are protocol decisions.
 
-This is why JuanPager does not need a `calendarComponent`, `mapComponent`, `spreadsheetComponent`, or `chatComponent` in its public schema. It needs the semantic primitives that make calendars, maps, spreadsheets, and chats truthful and operable.
+This is why JuanPager does not need a `calendarComponent`, `mapComponent`, `spreadsheetComponent`, `treeComponent`, or `chatComponent` in its public schema. It needs the semantic primitives that make those surfaces truthful and operable.
 
 ## Reduction examples
 
@@ -38,45 +36,44 @@ This is why JuanPager does not need a `calendarComponent`, `mapComponent`, `spre
 |---|---|
 | Spreadsheet | ordered records, typed fields, formulas, ranges, selections, edits, transactions |
 | Dashboard | metrics, projections, scopes, selections, inspect and invoke affordances |
-| Calendar or Gantt chart | temporal intervals, recurrence, dependencies, temporal scopes and edits |
-| Map or floor plan | objects, geometry, spatial relationships, viewport state and selection |
-| Knowledge graph | objects, typed directed relations, traversal scope and inspection |
+| Calendar or Gantt chart | temporal intervals, recurrence, dependencies, ranges, playheads and edits |
+| Map or floor plan | objects, geometry, spatial relationships, viewport, zoom and selection |
+| Knowledge graph | objects, typed directed relations, traversal paths and inspection |
 | Document editor | ordered content, addressable ranges, annotations, revisions and transactions |
-| Audio or video editor | media resources, tracks, time ranges, playhead state and edits |
-| Chat or email | ordered authored events, thread topology, delivery state and operations |
-| CAD or digital twin | geometry, constraints, continuous state, viewport, transactions and receipts |
+| Audio or video editor | media resources, tracks, time ranges, playheads and edits |
+| Chat or email | ordered authored events, thread topology, grouping, delivery state and operations |
+| CAD or digital twin | geometry, constraints, clocks, viewport, transactions and receipts |
 | Game | simulation clock, world state, actions, authority, feedback and alternate modalities |
 
 If a proposed interface cannot be reduced this way, the missing concept belongs in the canonical semantic model. It must not be hidden inside arbitrary agent-authored HTML or a second renderer.
 
 ## What 100% means
 
-There are two separate scores:
+There are two separate scores.
 
 ### Accounting completeness
 
-Every known interface domain is present in `spec/interface-capabilities.json`, with its semantic primitives, evidence, and named gaps. The repository must keep this at **100% accounted for**. CI fails when a required domain disappears, an implemented claim lacks evidence, or a partial domain hides its missing semantics.
+Every known interface domain is present in `spec/interface-capabilities.json`, with semantic primitives, evidence, and named gaps. The repository keeps this at **100% accounted for**. CI fails when a domain disappears, an implemented claim lacks evidence, or a partial domain conceals its remaining work.
 
 ### Implementation completeness
 
-A domain is implemented only when the canonical schema, M1 compilation path where applicable, `renderPage`, typed human output, accessibility behavior, hostile-input behavior, and executable tests all support it. The atlas must state `partial` or `missing` until that evidence exists.
+A domain is implemented only when JuanPage, the M1 path where applicable, `renderPage`, typed human output, accessibility behavior, hostile-input behavior, and executable tests support it. The atlas remains `partial` wherever a real semantic or host-adapter gap remains.
 
-The repository must never turn accounting completeness into a false claim that all future interfaces have already been implemented.
+Accounting completeness must never become a false claim that all future interfaces are already implemented.
 
 ## Current semantic kernel
 
-JuanPage 2.0 already has a strong universal kernel:
+JuanPage 2.0 now includes:
 
-- objects and typed fields;
-- typed relationships;
-- derived metrics and aggregate projections;
-- scopes and selections;
+- objects, typed fields, relationships and evidence;
+- universal typed values for time, space, content, media, units, uncertainty, distributions and matrices;
+- metrics and eight semantic projection families;
+- scopes, selections, expansions, paths, viewports, ranges, playheads, ordering, grouping, focus and clocks;
 - semantic affordances and explicit bindings;
-- fact, scope, selection, operation, and receipt output;
+- atomic transactions with preconditions, conflict detection, commit, cancel, undo and redo;
+- fact, scope, selection, interaction-state, transaction, operation and receipt output through M1;
 - capability and trust compilation;
-- one accessible adaptive renderer.
-
-This kernel covers records, common controls, operational dashboards, approvals, catalog-like experiences, checklists, forms, and basic data exploration without a component tree.
+- one accessible adaptive renderer and one visual system.
 
 ## Implementation ledger
 
@@ -87,72 +84,55 @@ Implemented:
 - compact typed values for instants, intervals, durations, recurrence, coordinates, bounds, paths, geometry, content, ranges, media, time ranges, quantities, uncertainty, distributions, and matrices;
 - direct use of those tuples as ordinary M1 facts and JuanPage fields;
 - reserved-tag validation so malformed semantic tuples fail closed instead of becoming untyped lists;
-- generalized deterministic projection families for categorical, temporal, matrix, hierarchy, network, spatial, document, and ordered-stream meaning;
-- hierarchy cycle rejection, safe resource URL validation, explicit size bounds, and executable tests;
-- public SDK exports and a normative contract in `spec/UNIVERSAL_VALUES.md`.
+- deterministic categorical, temporal, matrix, hierarchy, network, spatial, document, and stream projections;
+- unit-safe aggregation, hierarchy-cycle rejection, safe resource URL validation and explicit bounds.
 
-This tranche does not add a calendar, map, tree, graph, editor, chat, or media component format. The same objects, fields, relations, values, and identities feed every projection family.
+### Tranche 2: universal interaction runtime
 
-Current atlas score after this tranche:
+Implemented:
 
-- 3 implemented domains;
-- 9 partial domains;
-- 1 missing domain;
+- typed expansion, path, viewport, range, playhead, ordering, grouping, focus and simulation-clock state;
+- adaptive representations for all eight projection families through `renderPage`;
+- working hierarchy expansion, network traversal, spatial pan and zoom, temporal playheads and ranges, matrix interaction, document ordering and stream grouping;
+- atomic multi-patch transactions with optimistic preconditions and fail-closed conflicts;
+- commit, cancel, undo and redo with typed state history;
+- M1-compatible state and transaction operations, record-only session replay, and action receipts;
+- focus restoration, keyboard-native controls, semantic roles, high-contrast rules and reduced-motion behavior;
+- public renderer, state and interaction SDK entrypoints;
+- architecture gates that reject parallel renderers, component instructions, inert controls and removal of the universal state kernel.
+
+This tranche does not add separate calendar, map, graph, editor, chat, game, or media schemas. The runtime derives each representation from the same objects, values, relationships, projections, state and bindings.
+
+Current atlas score:
+
+- 5 implemented domains;
+- 8 partial domains;
+- 0 missing domains;
 - 100% accounting completeness.
 
-The remaining fully missing domain is simulation-grade interaction. Spatial representation is no longer missing because coordinates, bounds, paths, geometry, and spatial projection are now executable, but viewport state and adaptive spatial rendering still keep it partial.
+No known interface domain is now entirely absent from the canonical kernel. Partial domains remain where deeper semantics or host adapters are still genuinely required, including recurrence expansion, 3D geometry, media playback, live presence, multi-author merge, continuous constraint solving and alternate-modality negotiation.
 
 ## Canonical expansion sequence
 
-The next work should expand the semantic kernel rather than add one-off widgets.
-
 ### 1. Universal value algebra — implemented foundation
-
-Implemented typed values for:
-
-- instants, intervals, durations, and recurrence;
-- coordinates, bounds, paths, and geometry;
-- content resources and addressable ranges;
-- media resources, tracks, and time ranges;
-- uncertainty, units, distributions, and matrices.
 
 Values are data-only, bounded, serializable, safe to validate, and transportable through ordinary M1 facts. See `spec/UNIVERSAL_VALUES.md`.
 
 ### 2. Generalized projection algebra — implemented foundation
 
-Implemented semantic projection families for:
+Projection families describe categorical, temporal, matrix, hierarchy, network, spatial, document and ordered-stream meaning. They never instruct the runtime to instantiate a producer-selected component.
 
-- categorical and quantitative;
-- temporal;
-- matrix;
-- hierarchy;
-- network;
-- spatial;
-- document;
-- ordered stream.
+### 3. Universal interaction state — implemented foundation
 
-The evaluator produces deterministic semantic results with source object and relation identities. Adaptive visual projection and direct manipulation remain renderer work, not new schema work.
+State meaningful to humans and agents includes expansion, paths, viewports, ranges, playheads, ordering, grouping, focus and clocks. It persists locally and through record-only M1 sessions.
 
-### 3. Universal interaction state — next
+### 4. Transactions and reversible change — implemented foundation
 
-Extend typed state beyond scopes and selections to include:
+Typed transactions carry patches and preconditions. Conflicts fail closed. Commit, cancel, undo and redo are first-class operations and can produce receipts. See `spec/UNIVERSAL_INTERACTION.md`.
 
-- expansion and path state;
-- viewport and zoom state;
-- cursor, range, and playhead state;
-- ordering and grouping state;
-- focus restoration anchors;
-- simulation clock and pause state.
+### 5. Alternate-modality contract — continuing conformance work
 
-Only state that has semantic value to both humans and agents belongs in the protocol.
-
-### 4. Transactions and reversible change
-
-Add typed transaction groups with preconditions, patches, commit, cancel, undo, redo, conflict, and receipts. This is necessary for document editing, spreadsheets, design tools, simulations, and other multi-step work.
-
-### 5. Alternate-modality contract
-
-Every semantic surface must be projectable to pointer, keyboard, touch, voice, switch access, screen readers, braille, high contrast, reduced motion, and future modalities where host capabilities permit. The semantic operation stays the same while the control changes.
+Semantic operations are exposed through native pointer, keyboard and touch controls, accessible roles, focus restoration, high contrast and reduced motion. Formal voice, switch, braille, haptic and future-modality negotiation remains an explicit partial-domain obligation rather than a second UI schema.
 
 ## Admission rule for new UI ideas
 
@@ -171,4 +151,4 @@ If the current model cannot answer these questions, improve the one canonical mo
 
 ## The invariant
 
-The theory of everything is not a frozen list of widgets. It is a repository that can account for every representational domain, honestly expose what remains missing, and evolve one coherent semantic kernel until every meaningful human and agent operation can share the same world.
+The Theory of Everything is not a frozen list of widgets. It is one repository that accounts for every representational domain, exposes remaining gaps honestly, and evolves one coherent semantic kernel until every meaningful human and agent operation can share the same world.

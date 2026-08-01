@@ -1,5 +1,7 @@
 import { z } from "zod";
+import { semanticProjectionSchema, type SemanticProjection } from "../projection/universal.js";
 import { DocumentValidationError } from "./errors.js";
+import { pageInteractionStateSchema } from "./interaction.js";
 import { LIMITS } from "./limits.js";
 import { isAllowedUrl } from "./url.js";
 import { pageScalarSchema, pageValueSchema } from "./value.js";
@@ -16,13 +18,31 @@ export {
   type PageValue,
   type SemanticValue,
 } from "./value.js";
+export {
+  pageClockStateSchema,
+  pageInteractionDomainSchema,
+  pageInteractionStateSchema,
+  pageInteractionValueSchema,
+  pageViewportStateSchema,
+  type PageClockState,
+  type PageInteractionDomain,
+  type PageInteractionState,
+  type PageInteractionValue,
+  type PageViewportState,
+} from "./interaction.js";
+export {
+  semanticProjectionSchema,
+  validateSemanticProjection,
+  evaluateSemanticProjection,
+  type SemanticProjection,
+  type SemanticProjectionResult,
+} from "../projection/universal.js";
 
 const text = (max: number = LIMITS.maxTextLength) => z.string().min(1).max(max);
 const optionalText = (max: number = LIMITS.maxTextLength) => z.string().max(max).optional();
 const id = z.string().min(1).max(80).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/);
 const key = z.string().min(1).max(80).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/);
-
-const safeUrl = z.string().max(LIMITS.maxUrlLength).refine((value) => isAllowedUrl(value), {
+const safeUrl = z.string().max(LIMITS.maxUrlLength).refine(isAllowedUrl, {
   message: "URL must be https (or localhost during development)",
 });
 
@@ -80,7 +100,7 @@ export const pageScopeSchema = z.object({
   objectTypes: z.array(text(80)).max(30).optional(),
 }).strict();
 
-const projectionBase = {
+const legacyProjectionBase = {
   id,
   label: text(120),
   description: optionalText(300),
@@ -93,11 +113,12 @@ const projectionBase = {
   limit: z.number().int().positive().max(50).optional(),
   ignoreScopes: z.array(id).max(20).optional(),
 };
-export const pageProjectionSchema = z.discriminatedUnion("operation", [
-  z.object({ ...projectionBase, operation: z.literal("count") }).strict(),
-  z.object({ ...projectionBase, operation: z.literal("sum"), measure: key }).strict(),
-  z.object({ ...projectionBase, operation: z.literal("average"), measure: key }).strict(),
+export const legacyPageProjectionSchema = z.discriminatedUnion("operation", [
+  z.object({ ...legacyProjectionBase, operation: z.literal("count") }).strict(),
+  z.object({ ...legacyProjectionBase, operation: z.literal("sum"), measure: key }).strict(),
+  z.object({ ...legacyProjectionBase, operation: z.literal("average"), measure: key }).strict(),
 ]);
+export const pageProjectionSchema = z.union([legacyPageProjectionSchema, semanticProjectionSchema]);
 
 const inspectEffectSchema = z.object({ kind: z.literal("inspect") }).strict();
 const setEffectSchema = z.object({ kind: z.literal("set"), field: key }).strict();
@@ -181,11 +202,6 @@ export const pageBindingSchema = z.object({
   priority: z.enum(["primary", "secondary"]).optional(),
 }).strict();
 
-export const pageInteractionStateSchema = z.object({
-  scopes: z.record(pageScalarSchema).optional(),
-  selections: z.record(z.array(id).max(100)).optional(),
-}).strict();
-
 export const juanPageSchema = z.object({
   version: z.literal("2.0"),
   title: text(200),
@@ -211,13 +227,13 @@ export type PageObject = z.infer<typeof pageObjectSchema>;
 export type PageRelation = z.infer<typeof pageRelationSchema>;
 export type PageMetric = z.infer<typeof pageMetricSchema>;
 export type PageScope = z.infer<typeof pageScopeSchema>;
+export type LegacyPageProjection = z.infer<typeof legacyPageProjectionSchema>;
 export type PageProjection = z.infer<typeof pageProjectionSchema>;
 export type PageAffordanceEffect = z.infer<typeof pageAffordanceEffectSchema>;
 export type PageAffordanceInput = z.infer<typeof pageAffordanceInputSchema>;
 export type PageAffordance = z.infer<typeof pageAffordanceSchema>;
 export type PageBindingTarget = z.infer<typeof pageBindingTargetSchema>;
 export type PageBinding = z.infer<typeof pageBindingSchema>;
-export type PageInteractionState = z.infer<typeof pageInteractionStateSchema>;
 export type JuanPageDocument = z.infer<typeof juanPageSchema>;
 
 function invalid(details: string): never {
@@ -233,6 +249,47 @@ function sourceObjects(page: JuanPageDocument, sourceType?: string, sourceGroup?
   return page.objects.filter((object) =>
     (!sourceType || object.type === sourceType) && (!sourceGroup || object.group === sourceGroup),
   );
+}
+
+function semanticProjectionFields(projection: SemanticProjection): string[] {
+  if (projection.family === "categorical") return [projection.dimension, projection.measure].filter(Boolean) as string[];
+  if (projection.family === "temporal") return [projection.start, projection.end, projection.measure, projection.lane].filter(Boolean) as string[];
+  if (projection.family === "matrix") return [projection.row, projection.column, projection.measure].filter(Boolean) as string[];
+  if (projection.family === "hierarchy") return [projection.parentField, projection.orderField].filter(Boolean) as string[];
+  if (projection.family === "network") return [projection.weightField].filter(Boolean) as string[];
+  if (projection.family === "spatial") return [projection.geometryField, projection.labelField].filter(Boolean) as string[];
+  if (projection.family === "document") return [projection.contentField, projection.rangeField, projection.orderField].filter(Boolean) as string[];
+  return [projection.timeField, projection.authorField, projection.threadField, projection.contentField].filter(Boolean) as string[];
+}
+
+function validateSemanticProjectionReferences(
+  page: JuanPageDocument,
+  projection: SemanticProjection,
+  candidates: PageObject[],
+  fieldsByObject: Map<string, Set<string>>,
+): void {
+  for (const field of semanticProjectionFields(projection)) {
+    if (["id", "name", "type", "group", "status"].includes(field)) continue;
+    if (!candidates.some((object) => fieldsByObject.get(object.id)?.has(field))) {
+      invalid(`Projection "${projection.id}" field "${field}" is unavailable.`);
+    }
+  }
+  if (projection.family === "hierarchy" && projection.relationKind
+    && !(page.relations ?? []).some((relation) => relation.kind === projection.relationKind)) {
+    invalid(`Hierarchy projection "${projection.id}" relation kind "${projection.relationKind}" is unavailable.`);
+  }
+}
+
+function validateStateObjectIds(
+  name: string,
+  values: Record<string, readonly string[]> | undefined,
+  objectIds: Set<string>,
+): void {
+  for (const [stateKey, ids] of Object.entries(values ?? {})) {
+    for (const objectId of ids) {
+      if (!objectIds.has(objectId)) invalid(`Initial ${name} "${stateKey}" references unknown object "${objectId}".`);
+    }
+  }
 }
 
 export function validatePage(input: unknown): JuanPageDocument {
@@ -259,9 +316,7 @@ export function validatePage(input: unknown): JuanPageDocument {
   const relationIds = new Set<string>();
   for (const relation of page.relations ?? []) {
     duplicate(relationIds, relation.id, "relation");
-    if (!objectIds.has(relation.from) || !objectIds.has(relation.to)) {
-      invalid(`Relation "${relation.id}" references an unknown object.`);
-    }
+    if (!objectIds.has(relation.from) || !objectIds.has(relation.to)) invalid(`Relation "${relation.id}" references an unknown object.`);
   }
 
   const metricIds = new Set<string>();
@@ -283,17 +338,26 @@ export function validatePage(input: unknown): JuanPageDocument {
     duplicate(projectionIds, projection.id, "projection");
     const candidates = sourceObjects(page, projection.sourceType, projection.sourceGroup);
     if (!candidates.length) invalid(`Projection "${projection.id}" has no source objects.`);
-    if (!candidates.some((object) => fieldsByObject.get(object.id)?.has(projection.dimension))) {
-      invalid(`Projection "${projection.id}" dimension "${projection.dimension}" is unavailable.`);
+    if ("family" in projection) {
+      validateSemanticProjectionReferences(page, projection, candidates, fieldsByObject);
+    } else {
+      if (!candidates.some((object) => fieldsByObject.get(object.id)?.has(projection.dimension))) {
+        invalid(`Projection "${projection.id}" dimension "${projection.dimension}" is unavailable.`);
+      }
+      if (projection.operation !== "count"
+        && !candidates.some((object) => fieldsByObject.get(object.id)?.has(projection.measure))) {
+        invalid(`Projection "${projection.id}" measure "${projection.measure}" is unavailable.`);
+      }
+      for (const scopeId of projection.ignoreScopes ?? []) {
+        if (!scopeIds.has(scopeId)) invalid(`Projection "${projection.id}" ignores unknown scope "${scopeId}".`);
+      }
     }
-    if (projection.operation !== "count" && !candidates.some((object) => fieldsByObject.get(object.id)?.has(projection.measure))) {
-      invalid(`Projection "${projection.id}" measure "${projection.measure}" is unavailable.`);
-    }
-    for (const scopeId of projection.ignoreScopes ?? []) if (!scopeIds.has(scopeId)) invalid(`Projection "${projection.id}" ignores unknown scope "${scopeId}".`);
   }
 
   for (const metric of page.metrics ?? []) {
-    for (const scopeId of metric.ignoreScopes ?? []) if (!scopeIds.has(scopeId)) invalid(`Metric "${metric.id}" ignores unknown scope "${scopeId}".`);
+    for (const scopeId of metric.ignoreScopes ?? []) {
+      if (!scopeIds.has(scopeId)) invalid(`Metric "${metric.id}" ignores unknown scope "${scopeId}".`);
+    }
   }
 
   const affordanceIds = new Set<string>();
@@ -313,7 +377,8 @@ export function validatePage(input: unknown): JuanPageDocument {
     if (effect.kind === "select") selectionIds.add(effect.selection);
     if (effect.kind === "copy" && effect.source === "field" && !effect.field) invalid(`Affordance "${affordance.id}" copies a field but does not name one.`);
     if (effect.kind === "copy" && effect.source === "url" && !effect.url) invalid(`Affordance "${affordance.id}" copies a URL but does not provide one.`);
-    if (inputKind === "number" && affordance.input.presentation === "adjust" && (affordance.input.min === undefined || affordance.input.max === undefined)) {
+    if (inputKind === "number" && affordance.input.presentation === "adjust"
+      && (affordance.input.min === undefined || affordance.input.max === undefined)) {
       invalid(`Adjust affordance "${affordance.id}" needs both min and max.`);
     }
   }
@@ -324,8 +389,8 @@ export function validatePage(input: unknown): JuanPageDocument {
     const affordance = affordances.get(binding.affordance);
     if (!affordance) invalid(`Binding "${binding.id}" references unknown affordance "${binding.affordance}".`);
     const target = binding.target;
-    if (target.kind === "object" || target.kind === "field") {
-      if (!objectIds.has(target.object)) invalid(`Binding "${binding.id}" references unknown object "${target.object}".`);
+    if ((target.kind === "object" || target.kind === "field") && !objectIds.has(target.object)) {
+      invalid(`Binding "${binding.id}" references unknown object "${target.object}".`);
     }
     if (target.kind === "field" && !fieldsByObject.get(target.object)?.has(target.field)) {
       invalid(`Binding "${binding.id}" references unknown field "${target.object}.${target.field}".`);
@@ -348,9 +413,15 @@ export function validatePage(input: unknown): JuanPageDocument {
     }
   }
 
-  for (const scopeId of Object.keys(page.state?.scopes ?? {})) if (!scopeIds.has(scopeId)) invalid(`Initial state references unknown scope "${scopeId}".`);
-  for (const selectionId of Object.keys(page.state?.selections ?? {})) if (!selectionIds.has(selectionId)) invalid(`Initial state references unknown selection "${selectionId}".`);
-
+  for (const scopeId of Object.keys(page.state?.scopes ?? {})) {
+    if (!scopeIds.has(scopeId)) invalid(`Initial state references unknown scope "${scopeId}".`);
+  }
+  for (const selectionId of Object.keys(page.state?.selections ?? {})) {
+    if (!selectionIds.has(selectionId)) invalid(`Initial state references unknown selection "${selectionId}".`);
+  }
+  validateStateObjectIds("expansion", page.state?.expansions, objectIds);
+  validateStateObjectIds("path", page.state?.paths, objectIds);
+  validateStateObjectIds("ordering", page.state?.ordering, objectIds);
   return page;
 }
 
