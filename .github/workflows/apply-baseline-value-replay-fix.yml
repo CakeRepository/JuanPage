@@ -1,0 +1,28 @@
+name: Apply baseline value replay fix
+
+on:
+  push:
+    branches: [feat/shareable-interaction-ledger]
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    if: ${{ !contains(github.event.head_commit.message, '[baseline-replay-applied]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: feat/shareable-interaction-ledger
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - run: node scripts/apply-baseline-value-replay-fix.mjs
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/state/pageState.ts
+          git commit -m "Preserve original facts through reset and undo [baseline-replay-applied]"
+          git push origin HEAD:feat/shareable-interaction-ledger
