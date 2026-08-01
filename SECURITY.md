@@ -29,7 +29,7 @@ A durable `AgentHumanSession` does not independently grant execution authority. 
 
 ## Data-only runtime boundary
 
-JuanPager never executes agent-authored HTML, CSS, JavaScript, WebAssembly, callbacks, iframes, arbitrary components, plugins, or network instructions. JuanPage, M1, interaction state, sessions, deltas, and receipts remain bounded data validated before rendering or replay.
+JuanPager never executes agent-authored HTML, CSS, JavaScript, WebAssembly, callbacks, iframes, arbitrary components, plugins, or network instructions. JuanPage, M1, interaction state, sessions, deltas, receipts, execution requests, and notifications remain bounded data validated before rendering, replay, or delivery.
 
 The installed PWA is the same trusted runtime as the website. Installation does not expand packet authority. The service worker caches same-origin application-shell resources and navigation responses; URL fragments are not HTTP request data and are not used as cache keys. Offline interaction remains local until an explicit synchronization succeeds.
 
@@ -58,7 +58,29 @@ A shared filesystem is not a multi-region consensus system. Distributed deployme
 - validate the returned session before storage and again when loaded;
 - avoid exposing bearer credentials in the JuanPage, URL fragment, manifest, service worker, or local storage.
 
+`createAgentHumanSessionHttpHandler` supplies a reference Fetch-standard boundary with required authentication, tenant metadata enforcement, exact one-revision updates, `If-Match`, immutable creation time, bounded request bodies, expiration checks, and fail-closed lifecycle transitions. It does not provide an identity provider, database, encryption key management, backups, rate limiting, malware inspection, regional consensus, or audit retention. Production hosts must supply those controls.
+
 Session IDs are routing identifiers, not credentials. Use high-entropy IDs and independent authentication.
+
+## Verified external execution
+
+The browser and self-contained URL transport remain record-only. Remote effects occur only through a host-selected `AgentHumanActionExecutor`.
+
+`executeStoredAgentHumanSession` requires explicit durable-session completion by default. For an approval-gated proposal, it appends an M1 `ApproveAction` mutation before invoking the executor, preserves the proposal's mutation ID and idempotency key, records `executing`, and writes a terminal result delta and receipt.
+
+This sequencing prevents accidental duplicate execution inside one valid session history, but it cannot make an external system idempotent. Every executor must enforce the supplied idempotency key at the actual side-effect boundary. The host must also re-check operation-specific authorization, target, arguments, tenant, capability, and current external state immediately before execution.
+
+Executor output is not automatically trusted merely because it satisfies the TypeScript interface. A compromised or dishonest executor can return false results or evidence. Hosts should bind evidence to external audit records, independently verify high-impact outcomes, and sign terminal receipts when non-repudiation is required.
+
+Never allow a page, URL, notification, model response, label, or session completion flag to select arbitrary code, a network destination, shell command, SQL statement, or plugin. Map known semantic operation IDs to reviewed executor implementations in trusted host configuration.
+
+## Notification delivery
+
+Notifications are routing messages, not authorization. The JuanPager notification contract contains a title, body, urgency, expiry, session ID, and launch URL. Do not include access tokens, secrets, raw sensitive evidence, or executor credentials.
+
+`BrowserAgentHumanNotifier` uses browser permission and the installed service worker. Notification clicks are accepted only for same-origin URLs within the service-worker scope. `WebhookAgentHumanNotifier` requires HTTPS outside localhost, but the destination remains a trusted deployment choice. Hosts must authenticate the webhook, validate downstream providers, rate-limit abuse, prevent open redirects, and follow data-retention requirements for email, SMS, push, chat, or other delivery channels.
+
+A notification recipient must still authenticate to load the durable session. Possession of the notification or launch URL must not grant session access.
 
 ## Key lifecycle
 
@@ -78,7 +100,7 @@ URL fragments can appear in browser history, screenshots, bookmarks, extensions,
 
 Delegation verifies an explicit signed chain; it does not perform certificate discovery or policy federation. A verifier must provide every trusted key and select the required capability.
 
-JuanPager never treats labels, localized vocabulary, embeddings, latent vectors, display metadata, UI structure, session IDs, or completion status as authorization data.
+JuanPager never treats labels, localized vocabulary, embeddings, latent vectors, display metadata, UI structure, session IDs, notifications, or completion status as authorization data.
 
 A receipt is evidence that must be checked against the expected operation, actor, target, policy, idempotency key, and executor. It is not proof that an external system behaved honestly.
 
@@ -92,11 +114,14 @@ Production hosts should:
 4. pin accepted audiences and required capabilities;
 5. retain the default short envelope lifetime unless a reviewed workflow requires otherwise;
 6. reject unknown algorithms, issuers, keys, versions, and partially migrated inputs;
-7. log packet IDs, session IDs, revisions, receipt IDs, mutation IDs, actors, and idempotency keys without logging secrets;
+7. log packet IDs, session IDs, revisions, receipt IDs, mutation IDs, actors, executors, and idempotency keys without logging secrets;
 8. require HTTPS outside local development;
 9. authenticate and authorize every durable-session read and write;
-10. enforce optimistic session revisions and fail on conflicts rather than overwriting;
+10. enforce tenant isolation, exact optimistic session revisions, and fail on conflicts rather than overwriting;
 11. test backup, restore, corruption, replay, session expiry, offline recovery, and key-compromise procedures;
-12. treat external execution receipts as evidence to verify, not as unquestionable truth;
-13. review service-worker cache scope and invalidate the shell during security releases;
-14. keep CSP restrictive and explicitly allow only required same-origin or reviewed session endpoints.
+12. map semantic operation IDs only to reviewed host executors and re-authorize immediately before effects;
+13. enforce idempotency in the external system, not only in JuanPager session history;
+14. treat external execution receipts as evidence to verify, not as unquestionable truth;
+15. require authentication after every notification handoff and never place credentials in notification payloads;
+16. review service-worker cache and notification scope and invalidate the shell during security releases;
+17. keep CSP restrictive and explicitly allow only required same-origin or reviewed session and notification endpoints.
