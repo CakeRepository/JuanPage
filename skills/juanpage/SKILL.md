@@ -1,28 +1,28 @@
 ---
-name: juanpage-agent
+name: juanpage
 description: Generate, validate, host, review, debug, and evolve JuanPager semantic experiences. Use when a user wants a JuanPage, a one-page interactive interface, a shareable JuanPager URL, an M1 human handoff, or repository work involving JuanPage 2.0, renderPage, typed human state, trust, or protocol evolution. Default to producing a working hosted JuanPage URL rather than modifying the JuanPager repository.
 ---
 
-# JuanPage Agent
+# JuanPage
 
-JuanPager is a semantic interaction protocol, not a component generator. Describe meaning, available operations, and typed state; let the trusted runtime choose the human presentation.
+Use JuanPager as a semantic interaction protocol, not a component generator. Describe meaning, available operations, and typed state; let the trusted runtime choose the human presentation.
 
 ## Default user experience: generate the URL
 
-Most users do not want protocol architecture work. They want a working JuanPage they can open.
+Most users want a working JuanPage they can open.
 
-For ordinary first-run requests:
+For ordinary requests:
 
-1. Identify the JuanPager host URL. Prefer a URL supplied by the user. Otherwise use the project’s documented production host when it is available.
-2. Translate the user’s request into a JuanPage 2.0 semantic graph.
+1. Identify the JuanPager host URL. Prefer a URL supplied by the user. Otherwise use the documented production host when available.
+2. Translate the request into a JuanPage 2.0 semantic graph.
 3. Add only real affordances and valid bindings.
-4. Validate the page with the repository’s exported validator.
+4. Validate the page with the repository's exported validator.
 5. Encode the page into a self-contained v5 URL using the host URL.
-6. Return the clickable URL as the primary result, with a brief description of what is interactive.
+6. Return the clickable URL as the primary result and briefly describe what is interactive.
 
-The user supplies the desired world or task. The host URL is configuration. Do not confuse the host URL with the source content for the page.
+The user supplies the desired world or task. The host URL is configuration, not the source content for the page.
 
-A first-run prompt may be as simple as:
+A first-run prompt may be:
 
 ```text
 Create a JuanPage for a product launch command center.
@@ -34,15 +34,15 @@ Given a configured host such as:
 https://cakerepository.github.io/juanpager/
 ```
 
-the skill should generate and return a URL shaped like:
+generate a URL shaped like:
 
 ```text
 https://cakerepository.github.io/juanpager/#v=5&enc=gz&data=...
 ```
 
-Use direct JuanPage for safe, self-contained interfaces that only inspect, set, scope, select, copy, or otherwise update local typed state. Use an M1 URL session when the human response must return to an agent as ordered deltas and receipts.
+Use direct JuanPage for safe, self-contained interfaces that inspect, set, scope, select, copy, or update local typed state. Use an M1 URL session when the human response must return to an agent as ordered deltas and receipts.
 
-Do not open a pull request, modify the JuanPager repository, or design new protocol machinery unless the user explicitly asks for implementation or repository changes.
+Do not open a pull request, modify the JuanPager repository, or design protocol machinery unless the user explicitly asks for implementation or repository changes.
 
 ## Hosted URL workflow
 
@@ -60,7 +60,7 @@ export JUANPAGER_BASE_URL="https://cakerepository.github.io/juanpager/"
 npm run encode -- path/to/packet.json --session
 ```
 
-The resulting link is the deliverable. A self-contained URL is data transported to the trusted `renderPage` runtime; it is not a generated web application or a second UI schema.
+The resulting link is the deliverable. A self-contained URL transports data to the trusted `renderPage` runtime; it is not a generated web application or a second UI schema.
 
 When the user returns a shared M1 session URL, decode it and use typed deltas and receipts as the human response:
 
@@ -72,17 +72,17 @@ Never put secrets, bearer credentials, private keys, or sensitive tokens in URL 
 
 ## Start with the live repository for implementation work
 
-Only enter this workflow when the user asks to change, debug, review, or extend JuanPager itself.
+Enter this workflow only when the user asks to change, debug, review, or extend JuanPager itself.
 
 1. Locate the JuanPager repository root.
 2. Run:
 
    ```bash
-   python3 skills/juanpage-agent/scripts/evolve.py check --repo .
+   python3 skills/juanpage/scripts/evolve.py check --repo .
    ```
 
-3. If the snapshot is stale, inspect the changed canonical files before designing anything. Run `sync` only after understanding the changes.
-4. Read `references/canonical-model.md` and the live source files it names whenever exact types, opcodes, limits, or behavior matter.
+3. If the snapshot is stale, inspect changed canonical files before designing anything. Run `sync` only after understanding the changes.
+4. Read `references/canonical-model.md` and the live source files it names when exact types, opcodes, limits, or behavior matter.
 5. Treat source and executable tests as stronger authority than prose documentation.
 
 Do not continue from remembered JuanPage versions or examples without checking the current repository.
@@ -110,7 +110,7 @@ Information is inert by default. Never make something look interactive unless a 
 
 - `inspect`: reveal more information locally.
 - `set`: update a typed fact.
-- `scope`: change the active viewing context without rewriting domain facts.
+- `scope`: change active viewing context without rewriting domain facts.
 - `select`: change selected semantic targets.
 - `invoke`: request or propose an externally consequential operation.
 - `navigate`: move to a policy-allowed trusted URL.
@@ -131,25 +131,25 @@ Do not encode scope as a fact edit, inspection as invocation, approval as displa
 - Keep display-only content free of fake control metadata.
 - Never include HTML, CSS, JavaScript, callbacks, framework components, iframes, shell commands, SQL, plugins, or arbitrary network instructions in a page.
 
-Validate with the repository’s exported validators or the same code path used by production. Do not rely on visual plausibility.
+Validate with the repository's exported validators or the same production path. Do not rely on visual plausibility.
 
 ## Generate repository examples
 
-When the user explicitly asks to add a demo or example to the JuanPager repository, keep that workflow inside this skill rather than creating another JuanPage skill.
+When explicitly asked to add a demo or example to the repository, keep that workflow inside JuanPage rather than creating another skill.
 
 1. Read `references/generation-contract.md`.
 2. Optionally create a minimal typed starting file:
 
    ```bash
-   python3 skills/juanpage-agent/scripts/scaffold_page.py \
+   python3 skills/juanpage/scripts/scaffold_page.py \
      --slug <example-slug> \
      --title "<page title>" \
      --object-name "<root object name>"
    ```
 
 3. Replace the scaffold with the complete semantic model.
-4. Add a focused `validatePage` test proving the important affordances, bindings, state, and authority behavior.
-5. Keep the public deliverable a hosted JuanPage URL unless the user specifically requested repository source.
+4. Add a focused `validatePage` test proving important affordances, bindings, state, and authority behavior.
+5. Keep the public deliverable a hosted JuanPage URL unless repository source was specifically requested.
 
 ## Verify behavior
 
@@ -169,9 +169,7 @@ npm test
 npm run build
 ```
 
-Run `npm run test:e2e` for renderer, browser, PWA, URL-session, or human-interaction changes.
-
-Do not add blind sleeps, skip tests, weaken assertions, or create decorative interactions.
+Run `npm run test:e2e` for renderer, browser, PWA, URL-session, or human-interaction changes. Do not add blind sleeps, skip tests, weaken assertions, or create decorative interactions.
 
 ## Trusted execution boundary
 
@@ -181,12 +179,12 @@ A trusted host executor must re-check authorization and tenant context, enforce 
 
 ## Self-evolve through evidence
 
-Create an evolution candidate only when repository evidence shows a reusable lesson, such as canonical source drift, repeated agent error, a general review finding, a failing test that exposes a reusable rule, or a new protocol capability needing a repeatable workflow.
+Create an evolution candidate only when repository evidence shows a reusable lesson, such as canonical source drift, repeated agent error, a general review finding, a failing test exposing a reusable rule, or a new protocol capability needing a repeatable workflow.
 
-Do not create an evolution candidate merely because a new example was generated successfully.
+Do not create a candidate merely because a new example generated successfully.
 
 ```bash
-python3 skills/juanpage-agent/scripts/evolve.py propose \
+python3 skills/juanpage/scripts/evolve.py propose \
   --repo . \
   --title "Use binding targets as semantic destinations" \
   --lesson "Do not duplicate object targets inside effects; the binding owns placement." \
@@ -197,9 +195,9 @@ python3 skills/juanpage-agent/scripts/evolve.py propose \
 Promotion requires immutable evidence and an explicit approval identity:
 
 ```bash
-python3 skills/juanpage-agent/scripts/evolve.py promote \
+python3 skills/juanpage/scripts/evolve.py promote \
   --repo . \
-  --candidate skills/juanpage-agent/evolution/candidates/<file>.json \
+  --candidate skills/juanpage/evolution/candidates/<file>.json \
   --approved-by <reviewer-or-agent-id>
 ```
 
@@ -207,19 +205,19 @@ Never learn permission from labels, prose, model confidence, screenshots, or suc
 
 ## Common translations
 
-- “Make me a launch command center” → generate a direct JuanPage, validate it, encode it against the configured host, and return the URL.
-- “Make July clickable and update the report” → one `scope` affordance, page/projection bindings, typed scope state, and dependent metrics.
-- “Make this a checklist” → Boolean facts with `set` affordances bound to fields.
-- “Let a human approve deployment and return the answer to my agent” → M1 URL session, approval policy, typed proposal, receipt, and returned shared URL.
-- “Show a read-only summary” → objects, fields, metrics, and projections without affordances.
-- “Add a cool chart control” → identify the semantic operation first; otherwise render an inert projection.
+- “Make me a launch command center” -> generate a direct JuanPage, validate it, encode it against the configured host, and return the URL.
+- “Make July clickable and update the report” -> one `scope` affordance, page/projection bindings, typed scope state, and dependent metrics.
+- “Make this a checklist” -> Boolean facts with `set` affordances bound to fields.
+- “Let a human approve deployment and return the answer to my agent” -> M1 URL session, approval policy, typed proposal, receipt, and returned shared URL.
+- “Show a read-only summary” -> objects, fields, metrics, and projections without affordances.
+- “Add a cool chart control” -> identify the semantic operation first; otherwise render an inert projection.
 
 ## Output standard
 
 For ordinary generation requests, return:
 
 1. the hosted JuanPage URL;
-2. a one-paragraph explanation of what the human can inspect or change;
+2. a brief explanation of what the human can inspect or change;
 3. the semantic source only when useful or requested.
 
 For repository implementation work, return or commit:

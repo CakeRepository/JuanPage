@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Maintain the repository-local JuanPage Agent with reviewable evidence."""
+"""Maintain the repository-local JuanPage skill with reviewable evidence."""
 
 from __future__ import annotations
 
@@ -44,7 +44,7 @@ def write_json(path: Path, value: dict[str, Any]) -> None:
 
 def git_blob_sha(data: bytes) -> str:
     header = f"blob {len(data)}\0".encode("ascii")
-    return hashlib.sha1(header + data).hexdigest()  # Git identity, not a security signature.
+    return hashlib.sha1(header + data).hexdigest()
 
 
 def manifest_paths(manifest_path: Path) -> list[str]:
@@ -111,12 +111,12 @@ def command_check(args: argparse.Namespace) -> int:
         if expected_files.get(path) != actual["files"].get(path)
     )
     if changed:
-        print("JuanPage Agent canonical-source drift detected:", file=sys.stderr)
+        print("JuanPage canonical-source drift detected:", file=sys.stderr)
         for path in changed:
             print(f"- {path}", file=sys.stderr)
         print("Inspect the changes, update guidance when needed, then run evolve.py sync --repo .", file=sys.stderr)
         return 1
-    print(f"JuanPage Agent snapshot matches {len(actual['files'])} canonical files.")
+    print(f"JuanPage snapshot matches {len(actual['files'])} canonical files.")
     return 0
 
 
@@ -190,12 +190,7 @@ def command_propose(args: argparse.Namespace) -> int:
     return 0
 
 
-def verify_candidate_integrity(
-    repo: Path,
-    candidate: dict[str, Any],
-    manifest: Path,
-    evidence: list[str],
-) -> None:
+def verify_candidate_integrity(repo: Path, candidate: dict[str, Any], manifest: Path, evidence: list[str]) -> None:
     snapshot = current_snapshot(repo, manifest)
     if candidate.get("repository") != snapshot["repository"]:
         raise SystemExit("Candidate repository does not match this JuanPager repository; re-propose it here")

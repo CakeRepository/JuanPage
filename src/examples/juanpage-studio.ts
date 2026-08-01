@@ -1,10 +1,10 @@
 import type { JuanPageDocument } from "../schema/page.js";
 
-export const juanPageAgentStudio: JuanPageDocument = {
+export const juanPageStudio: JuanPageDocument = {
   version: "2.0",
-  title: "JuanPage Agent Studio",
+  title: "JuanPage Studio",
   intent: "Turn an ordinary user request into one validated, hosted JuanPage experience.",
-  description: "A human and the JuanPage Agent share typed state for defining the page request, choosing the delivery contract, reviewing guardrails, and proposing generation through the trusted runtime.",
+  description: "A human and ChatGPT share typed state for defining a page request, choosing the delivery contract, reviewing guardrails, and proposing generation through the trusted runtime.",
   theme: "dark",
   metrics: [
     { id: "studio-objects", label: "Semantic objects", operation: "count", format: "number" },
@@ -27,19 +27,19 @@ export const juanPageAgentStudio: JuanPageDocument = {
   ],
   objects: [
     {
-      id: "agent-contract",
+      id: "skill-contract",
       type: "skill",
-      group: "Agent",
-      name: "JuanPage Agent",
+      group: "JuanPage",
+      name: "JuanPage",
       status: "Ready",
       tone: "success",
       summary: "The single user-facing skill that converts a request into a validated JuanPage URL or an M1 round-trip session.",
       tags: ["JuanPage 2.0", "User-facing", "Hosted"],
       fields: [
-        { key: "skillName", label: "Skill name", value: "juanpage-agent", display: "prominent" },
+        { key: "skillName", label: "Skill name", value: "juanpage", display: "prominent" },
         { key: "purpose", label: "Purpose", value: "Generate hosted JuanPages and typed human handoffs from ordinary requests." },
         { key: "mode", label: "Default mode", value: "Generate a working URL" },
-        { key: "complete", label: "Agent contract ready", value: true },
+        { key: "complete", label: "JuanPage ready", value: true },
       ],
     },
     {
@@ -49,7 +49,7 @@ export const juanPageAgentStudio: JuanPageDocument = {
       name: "Page generation brief",
       status: "Needs review",
       tone: "info",
-      summary: "The user describes the desired world. The skill translates it into semantic objects, operations, state, and authority.",
+      summary: "The user describes the desired world. JuanPage translates it into semantic objects, operations, state, and authority.",
       fields: [
         {
           key: "scenario",
@@ -161,18 +161,18 @@ export const juanPageAgentStudio: JuanPageDocument = {
     },
   ],
   relations: [
-    { id: "rel-agent-brief", from: "agent-contract", to: "generation-brief", kind: "translates" },
-    { id: "rel-agent-output", from: "agent-contract", to: "generated-page", kind: "generates" },
+    { id: "rel-skill-brief", from: "skill-contract", to: "generation-brief", kind: "translates" },
+    { id: "rel-skill-output", from: "skill-contract", to: "generated-page", kind: "generates" },
     { id: "rel-output-schema", from: "generated-page", to: "guardrail-schema", kind: "validated-by" },
     { id: "rel-output-interactions", from: "generated-page", to: "guardrail-interactions", kind: "constrained-by" },
     { id: "rel-output-authority", from: "generated-page", to: "guardrail-authority", kind: "constrained-by" },
-    { id: "rel-agent-model", from: "agent-contract", to: "task-model", kind: "implemented-by" },
+    { id: "rel-skill-model", from: "skill-contract", to: "task-model", kind: "implemented-by" },
     { id: "rel-model-validate", from: "task-model", to: "task-validate", kind: "precedes" },
     { id: "rel-validate-review", from: "task-validate", to: "task-review", kind: "precedes" },
   ],
   affordances: [
     { id: "inspect", label: "Inspect", effect: { kind: "inspect" }, input: { kind: "none" } },
-    { id: "copy-agent", label: "Copy agent contract", effect: { kind: "copy", source: "object" }, input: { kind: "none" } },
+    { id: "copy-juanpage", label: "Copy JuanPage contract", effect: { kind: "copy", source: "object" }, input: { kind: "none" } },
     {
       id: "edit-scenario",
       label: "Scenario",
@@ -242,19 +242,19 @@ export const juanPageAgentStudio: JuanPageDocument = {
     {
       id: "generate-page",
       label: "Generate hosted page",
-      description: "Propose URL generation through the JuanPage Agent after human review.",
+      description: "Propose URL generation through JuanPage after human review.",
       tone: "primary",
       effect: { kind: "invoke", operation: "generate-hosted-juanpage", policy: "approval" },
       input: { kind: "none" },
     },
   ],
   bindings: [
-    { id: "bind-inspect-agent", target: { kind: "object", object: "agent-contract" }, affordance: "inspect" },
+    { id: "bind-inspect-skill", target: { kind: "object", object: "skill-contract" }, affordance: "inspect" },
     { id: "bind-inspect-output", target: { kind: "object", object: "generated-page" }, affordance: "inspect" },
     { id: "bind-inspect-schema", target: { kind: "object", object: "guardrail-schema" }, affordance: "inspect" },
     { id: "bind-inspect-interactions", target: { kind: "object", object: "guardrail-interactions" }, affordance: "inspect" },
     { id: "bind-inspect-authority", target: { kind: "object", object: "guardrail-authority" }, affordance: "inspect" },
-    { id: "bind-copy-agent", target: { kind: "object", object: "agent-contract" }, affordance: "copy-agent" },
+    { id: "bind-copy-juanpage", target: { kind: "object", object: "skill-contract" }, affordance: "copy-juanpage" },
     { id: "bind-scenario", target: { kind: "field", object: "generation-brief", field: "scenario" }, affordance: "edit-scenario" },
     { id: "bind-audience", target: { kind: "field", object: "generation-brief", field: "audience" }, affordance: "choose-audience" },
     { id: "bind-delivery", target: { kind: "field", object: "generation-brief", field: "delivery" }, affordance: "choose-delivery" },
@@ -272,7 +272,7 @@ export const juanPageAgentStudio: JuanPageDocument = {
     { id: "bind-generate", target: { kind: "page" }, affordance: "generate-page", priority: "primary" },
   ],
   metadata: {
-    "example.kind": "juanpage-agent-studio",
-    "example.generatedBy": "juanpage-agent",
+    "example.kind": "juanpage-studio",
+    "example.generatedBy": "juanpage",
   },
 };

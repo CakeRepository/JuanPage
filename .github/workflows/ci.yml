@@ -30,8 +30,8 @@ jobs:
         run: npm run check:release-version
       - name: Architecture invariant
         run: npm run check:one-runtime
-      - name: JuanPage agent evolution tests
-        run: python3 -m unittest discover -s skills/juanpage-agent/tests -p "test_*.py" -v
+      - name: JuanPage evolution tests
+        run: python3 -m unittest discover -s skills/juanpage/tests -p "test_*.py" -v
       - name: Lint
         run: npm run lint
       - name: Unit tests

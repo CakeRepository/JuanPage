@@ -2,6 +2,8 @@
 
 This ledger contains evidence-backed lessons promoted through `scripts/evolve.py`. Canonical repository source and tests always take precedence.
 
+Historical `juanpage-agent:*` approver IDs in promoted candidate records are immutable provenance from before the public skill was renamed to `juanpage`.
+
 ## Seed patterns
 
 ### Bind interaction to meaning, not appearance
@@ -20,14 +22,14 @@ Evidence: `src/schema/page.ts`, `src/protocol/meaning.ts`.
 
 Before promotion, verify that the canonical snapshot and every evidence file still match the exact digests recorded when the lesson was proposed.
 
-Evidence: `skills/juanpage-agent/scripts/evolve.py`, `skills/juanpage-agent/tests/test_evolve.py`.
+Current evidence paths: `skills/juanpage/scripts/evolve.py`, `skills/juanpage/tests/test_evolve.py`.
 
-Promotion: `lesson:67ad9701d3d3a5e4` approved by `juanpage-agent:self-evolution-audit` on `2026-08-01T04:48:00Z`.
+Promotion: `lesson:67ad9701d3d3a5e4` approved by historical identity `juanpage-agent:self-evolution-audit` on `2026-08-01T04:48:00Z`.
 
 ## Use the active Python interpreter
 
-When an evolution test or helper launches Python, invoke sys.executable rather than a bare python command so it uses the validated interpreter and does not depend on a PATH alias.
+When an evolution test or helper launches Python, invoke `sys.executable` rather than a bare `python` command so it uses the validated interpreter and does not depend on a PATH alias.
 
-Evidence: `.github/workflows/ci.yml`, `skills/juanpage-agent/tests/test_evolve.py`.
+Current evidence paths: `.github/workflows/ci.yml`, `skills/juanpage/tests/test_evolve.py`.
 
-Promotion: `lesson:308b3614a62a9626` approved by `juanpage-agent:self-evolution-audit-2` on `2026-08-01T04:54:00Z`.
+Promotion: `lesson:308b3614a62a9626` approved by historical identity `juanpage-agent:self-evolution-audit-2` on `2026-08-01T04:54:00Z`.

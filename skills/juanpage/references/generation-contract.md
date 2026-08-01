@@ -32,12 +32,7 @@ Every affordance needs an `input`. Non-value effects use `{ kind: "none" }`.
 
 ## File pattern
 
-Create `src/examples/<slug>.ts` exporting one `JuanPageDocument`. Create `tests/<slug>.test.ts` that:
-
-1. imports `validatePage`;
-2. validates the example;
-3. asserts meaningful object, affordance, and binding behavior;
-4. verifies externally consequential operations use the intended policy.
+Create `src/examples/<slug>.ts` exporting one `JuanPageDocument`. Create `tests/<slug>.test.ts` that validates the example, asserts meaningful semantic behavior, and verifies authority policy.
 
 ## Completion checklist
 
@@ -48,4 +43,4 @@ Create `src/examples/<slug>.ts` exporting one `JuanPageDocument`. Create `tests/
 - Projection bindings use only inspect, scope, or select.
 - Invoke operations remain host-authorized and record-only in the browser.
 - No secrets or executable payloads appear in the document.
-- The page validates through the repository's current `validatePage` path.
+- The page validates through the current `validatePage` path.

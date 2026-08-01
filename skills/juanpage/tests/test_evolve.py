@@ -17,7 +17,7 @@ class EvolveCliTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory()
         self.repo = Path(self.temp.name)
-        self.skill = self.repo / "skills" / "juanpage-agent"
+        self.skill = self.repo / "skills" / "juanpage"
         self.script = self.skill / "scripts" / "evolve.py"
         self.references = self.skill / "references"
         self.manifest = self.references / "source-manifest.json"
@@ -43,18 +43,16 @@ class EvolveCliTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.temp.cleanup()
 
-    def run_cli(
-        self,
-        command: str,
-        *args: str,
-        check: bool = True,
-        env: dict[str, str] | None = None,
-    ) -> subprocess.CompletedProcess[str]:
+    def run_cli(self, command: str, *args: str, check: bool = True, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
             [
-                sys.executable, str(self.script), command,
-                "--repo", str(self.repo),
-                "--manifest", str(self.manifest),
+                sys.executable,
+                str(self.script),
+                command,
+                "--repo",
+                str(self.repo),
+                "--manifest",
+                str(self.manifest),
                 *args,
             ],
             check=check,
@@ -66,19 +64,26 @@ class EvolveCliTests(unittest.TestCase):
     def propose(self, title: str = "Preserve evidence integrity") -> Path:
         result = self.run_cli(
             "propose",
-            "--title", title,
-            "--lesson", "Require exact snapshot and evidence digests before promoting a lesson.",
-            "--evidence", "tests/evidence.txt",
-            "--output-dir", str(self.candidates),
+            "--title",
+            title,
+            "--lesson",
+            "Require exact snapshot and evidence digests before promoting a lesson.",
+            "--evidence",
+            "tests/evidence.txt",
+            "--output-dir",
+            str(self.candidates),
         )
         return Path(result.stdout.strip())
 
     def promote(self, candidate: Path, check: bool = True) -> subprocess.CompletedProcess[str]:
         return self.run_cli(
             "promote",
-            "--candidate", str(candidate),
-            "--approved-by", "test-reviewer",
-            "--lessons", str(self.lessons),
+            "--candidate",
+            str(candidate),
+            "--approved-by",
+            "test-reviewer",
+            "--lessons",
+            str(self.lessons),
             check=check,
         )
 
@@ -90,11 +95,7 @@ class EvolveCliTests(unittest.TestCase):
         (isolated_bin / "git").symlink_to(git)
         env = os.environ.copy()
         env["PATH"] = str(isolated_bin)
-        result = self.run_cli(
-            "check",
-            "--snapshot", str(self.snapshot),
-            env=env,
-        )
+        result = self.run_cli("check", "--snapshot", str(self.snapshot), env=env)
         self.assertIn("snapshot matches", result.stdout)
 
     def test_valid_candidate_promotes(self) -> None:
