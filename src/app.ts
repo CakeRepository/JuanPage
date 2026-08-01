@@ -10,6 +10,7 @@ import {
 } from "./encoding/pagePipeline.js";
 import {
   buildInteractivePageShareUrl,
+  interactionLedgerFromMeaningSession,
   interactionLedgerFromPage,
   MAX_SHARED_INTERACTIONS,
   sharedInteractionLedger,
@@ -151,12 +152,11 @@ function createMeaningBridge(
     async onAffordance(invocation): Promise<void> {
       const policy = policyFromPage(page, invocation.affordanceId);
       const target = invocation.objectId ?? null;
-      const operation = invocation.operation ?? `op:human.${invocation.effect}`;
       const delta = createActionDelta(
         packetId,
         revision,
         "actor:human:browser",
-        operation,
+        invocation.affordanceId,
         target,
         scalarArgs(page, invocation),
         policy,
@@ -166,6 +166,7 @@ function createMeaningBridge(
         execution: "record-only",
         affordance: invocation.affordanceId,
         effect: invocation.effect,
+        operation: invocation.operation ?? null,
       });
       await sendDelta(delta, receipt);
     },
@@ -239,8 +240,7 @@ function renderInteractionLedger(
     list.className = "jp-u-network-edges";
     for (const entry of ledger) {
       const item = document.createElement("li");
-      const time = new Date(entry.timestamp).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" });
-      item.textContent = `${time} · ${entry.label}${entry.patches ? ` · ${entry.patches} state change${entry.patches === 1 ? "" : "s"}` : ""}`;
+      item.textContent = `${entry.label}${entry.patches ? ` · ${entry.patches} state change${entry.patches === 1 ? "" : "s"}` : ""}`;
       list.append(item);
     }
     section.append(list);
@@ -255,7 +255,10 @@ function render(
 ): void {
   removeShareBridge?.();
   const bridge = createMeaningBridge(page, options.session);
-  let activity = interactionLedgerFromPage(page);
+  let activity = [
+    ...interactionLedgerFromPage(page),
+    ...(options.session ? interactionLedgerFromMeaningSession(options.session) : []),
+  ].slice(-MAX_SHARED_INTERACTIONS);
   let status = activity.length
     ? `Loaded ${activity.length} encoded interaction${activity.length === 1 ? "" : "s"}. New actions will update this URL automatically.`
     : "Every semantic action updates this URL automatically. Copy the address bar or use Share.";
