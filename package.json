@@ -55,7 +55,7 @@
     "inspect": "tsx scripts/inspect.ts",
     "prepack": "npm run build:sdk && npm test"
   },
-  "dependencies": { "fflate": "^0.8.2", "zod": "^3.24.2" },
+  "dependencies": { "fflate": "^0.8.2", "zod": "^4.6.2" },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.51.0",
